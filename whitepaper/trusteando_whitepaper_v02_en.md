@@ -224,7 +224,7 @@ Los nodos también pueden modelarse como objetos con métodos y valores, siguien
 
 ```
 acuerdo-xyz/                         ← object
-├── [state trusteando]/              ← object.state
+├── [state trusteado]/              ← object.state
 ├── participantes/                   ← object.collection
 │   ├── [empresaA proveedor]/         ← object.property (inmutable)
 │   └── [empresaB cliente]/           ← object.property (inmutable)
@@ -906,7 +906,7 @@ Un acuerdo entre dos o más partes puede representarse como un nodo independient
 
 ```
 acuerdo-servicios-2026-xyz/
-├── [state trusteando]/              ← object.state
+├── [state trusteado]/              ← object.state
 ├── participantes/                   ← object.collection
 │   ├── [empresaA proveedor]/         ← object.property (inmutable)
 │   └── [empresaB cliente]/           ← object.property (inmutable)
@@ -2135,9 +2135,9 @@ Convención [indicates] para afirmaciones con fuente
 
 ```
 Para expresar que un estado o propiedad es afirmado por una entidad externa se usa el operador relacional [indicates] seguido de la fuente. Esto permite atribuir cada afirmación a su origen, tener múltiples fuentes sobre el mismo nodo, y desvincular el protocolo de infraestructura específica. El protocolo no designa fuentes oficiales: cualquier nodo puede actuar como fuente indicando estados sobre otros nodos.
-restaurante-casapepe/[state trusteando]/[indicates]/[fuente michelin.es]/
+restaurante-casapepe/[state trusteado]/[indicates]/[fuente michelin.es]/
 root-23/[state brokenado]/[indicates]/[observador root-45]/[observador root-78]/
-restaurante-casapepe/[state trusteando]/[indicates]/[fuente michelin.es]/[fuente tripadvisor.com]/
+restaurante-casapepe/[state trusteado]/[indicates]/[fuente michelin.es]/[fuente tripadvisor.com]/
 ```
 
 <!-- TODO: translate -->
@@ -2146,7 +2146,7 @@ Azúcar sintáctico: [X by Y] para estados
 ```
 Para facilitar la escritura humana, el parser puede transformar la forma [X by Y] en [estado X][contexto Y] si y solo si X es un término del vocabulario reservado de estados (actualmente trusteando, verifiado, brokenado). Esta condición es esencial: garantiza que parsers que no implementen el azúcar encuentren una degradación predecible — ven X como parte reconocible del vocabulario — en lugar de una interpretación silenciosamente incorrecta.
 [brokenado by reputacion]   →  [state brokenado][context reputation]
-[trusteando by node-state]  →  [state trusteando][context node-state]
+[trusteando by node-state]  →  [state trusteado][context node-state]
 [reserva by ventana]        →  propiedad ordinaria (reserva no es estado reservado)
 Esta convención no introduce nuevas palabras reservadas en la gramática, solo en el vocabulario semántico. La gramática de tres tipos permanece intacta. by es texto libre en cualquier contexto salvo cuando precede a un valor y está precedido por un estado reservado.
 ```
@@ -2622,10 +2622,10 @@ La gestión de los secretos no requiere que ningún humano los memorice. El wall
 author/s-w-c/
 ├── [w-c-1 secret-wallet-collaborator]/
 │   ├── since/2026-03-18/             ← inicio de la custodia
-│   └── [state trusteando]/          ← activo y verificado
+│   └── [state trusteado]/          ← activo y verificado
 ├── [w-c-2 secret-wallet-collaborator]/
 │   ├── since/2026-03-18/
-│   └── [state trusteando]/
+│   └── [state trusteado]/
 ├── [w-c-3 secret-wallet-collaborator]/
 │   ├── since/2026-03-18/
 │   └──                              ← vacío hasta que esté verificado
@@ -2746,7 +2746,7 @@ boe.es/trusteando/
 │   ├── hash_publico/               ← prueba de identidad autónoma
 │   └── [boe-ref BOE-A-2027-XXXX]/    ← referencia a la publicación oficial
 ├── [acredited-by]/author/         ← acreditado por el autor fundador
-├── [state trusteando]/            ← nodo activo y verificado
+├── [state trusteado]/            ← nodo activo y verificado
 ├── since/2027-01-01/
 ├── registry/                      ← registro de nodos reconocidos por España
 │   ├── [uma root-domain-agent]/university-malaga/
@@ -2773,7 +2773,7 @@ federalregister.gov/trusteando/
 │   ├── public_key/
 │   └── [fr-ref FR-2027-XXXXX]/        ← referencia al Federal Register
 ├── [acredited-by]/author/
-├── [state trusteando]/
+├── [state trusteado]/
 ├── since/2027-01-01/
 ├── [quorum 3]/                    ← quórum mínimo entre agencias
 └── registry/
