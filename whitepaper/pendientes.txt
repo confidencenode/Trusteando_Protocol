@@ -591,3 +591,390 @@ No shared database. Just a folder."
 - El .docx español se congela en v0.2 — artefacto histórico
 - Cuando el inglés esté maduro se genera .docx y .pdf en inglés
 - La traducción al español se hace una sola vez al final
+
+## DECISIÓN ESTRUCTURAL — DOS FOCOS DEL PROTOCOLO
+
+### Los dos focos son distintos y se dirigen a audiencias distintas
+
+**Foco 1 — Identidad y confianza verificable**
+- Audiencia: individuos, organizaciones que necesitan credenciales
+- Problema: ¿cómo sé que esta persona/entidad es quien dice ser?
+- Mecanismo: TrusteandoNode, cadena de claves, verify_child_authorship
+- Casos de uso: acceso a eventos, credenciales académicas, firma de documentos,
+  registro de usuarios (b9/v9/t9)
+
+**Foco 2 — Interoperabilidad semántica**
+- Audiencia: desarrolladores, administraciones públicas, sectores enteros
+- Problema: ¿cómo intercambian datos sistemas independientes sin negociación previa?
+- Mecanismo: schema de carpetas como contrato universal
+- Casos de uso: bancos, hospitales, administraciones, cualquier sector estructurado
+
+### Se refuerzan mutuamente pero son argumentos distintos
+- Un CTO de banco no necesita entender grant_key para ver el valor de interoperabilidad
+- Un organizador de festival no necesita entender schemas para usar T10 para acceso
+
+### Decisión pendiente
+- ¿Dos documentos separados (whitepaper de identidad + whitepaper de interoperabilidad)?
+- ¿Dos secciones claramente diferenciadas dentro del mismo whitepaper?
+- ¿Un whitepaper unificado con introducción que presenta los dos focos?
+
+### Impacto en la estructura actual del whitepaper
+- La introducción actual mezcla los dos focos sin separarlos
+- Las secciones 2-4 son principalmente foco 1 (identidad/criptografía)
+- Las secciones 7-8 mezclan ambos focos
+- El Apéndice A y Style Guide son principalmente foco 2 (schema/gramática)
+
+## GRAMÁTICA — CUATRO PATRONES DE DATOS + IDENTIFICADORES ÚNICOS
+
+### Cuatro patrones para expresar datos en el grafo
+
+**Patrón 1 — subcarpeta con nombre**
+professors/juan-ruiz/       → el objeto tiene identidad propia en el grafo
+
+**Patrón 2 — [campo:valor] — identificador único**
+[client-id:C-123456]/       → dos puntos = identificador único, indexable, clave primaria
+[dni:12312312A]/            → ya usado implícitamente con esta convención
+[instance:2]/               → idem
+[quorum:3]/                 → idem
+
+**Patrón 3 — [campo valor] — atributo simple**
+[name "Juan Ruiz"]/         → comillas = string descriptivo, no único
+[amount 100]/               → numérico
+[currency EUR]/             → enumerado
+
+**Patrón 4 — extern/ — referencia a fuente canónica (como <a href> en HTML)**
+extern/bank/santander/accounts/[client-id:C-123456]/
+→ referencia a datos que viven en otro nodo
+→ evita duplicación e inconsistencia
+→ principio DRY aplicado al grafo
+
+**Patrón 5 — fields {} — datos estructurados locales**
+transfer/fields {
+    from is-type string
+    amount is-type decimal-positive
+}
+
+### Regla: [campo:valor] elimina necesidad de is-unique
+- Los dos puntos llevan la semántica implícita
+- El parser sabe por sintaxis qué es identificador y qué es atributo
+- No hace falta declarar is-unique en fields {}
+
+### Tabla completa de sintaxis
+[campo:valor]       → identificador único, indexable
+[campo "valor"]     → atributo string descriptivo
+[campo valor]       → atributo numérico o enumerado
+extern/ruta/        → referencia externa (link)
+fields { }          → datos estructurados locales
+
+### Ejemplo completo — cuenta bancaria
+bank/santander/accounts/
+└── [client-id:C-123456]/
+    ├── [name "Juan Ruiz"]/
+    ├── [iban "ES91 2100 0418 00 0200051332"]/
+    └── since/2015-03-01/
+
+### Ejemplo completo — transferencia con referencias externas
+transfer/
+├── [from extern/bank/santander/accounts/[client-id:C-123456]]/
+├── [to extern/bank/bbva/accounts/[client-id:B-789012]]/
+├── [amount 100]/
+└── [currency EUR]/
+
+### Pendiente
+- Actualizar Apéndice A con los cinco patrones
+- Actualizar Style Guide con la distinción dos-puntos vs comillas vs sin-comillas
+- Actualizar gramática BNF (Apéndice G) con la regla de identificadores
+- Eliminar is-unique de la gramática de fields {} — redundante
+- Añadir extern/ al vocabulario reservado junto con private/, since/, until/
+
+## OBJETOS VS PROPIEDADES — CONTROL VS DATOS
+
+### Distinción fundamental
+- Un OBJETO en una carpeta tiene poder controlador sobre su contenido
+  → tiene clave propia derivada por grant_key
+  → puede publicar sus propios hijos
+  → puede responder retos
+  → propaga nivel de confianza
+- Una PROPIEDAD es solo un dato del nodo padre
+  → no tiene clave propia
+  → no controla nada
+  → es información firmada por el padre
+
+### Regla de control por sintaxis
+subcarpeta-nombre/     → OBJETO — clave propia, controla su subárbol
+[campo:valor]/         → PROPIEDAD-ID — dato del padre, sin control
+[campo "valor"]/       → PROPIEDAD — dato del padre, sin control
+extern/ruta/           → REFERENCIA — apunta a objeto externo, sin control local
+fields {}              → DATOS ESTRUCTURADOS — del padre, sin control
+
+### Consecuencia criptográfica
+# Objeto → grant_key del padre, puede respond_to_challenge y crear hijos
+child_key = parent.grant_key("juan-ruiz")
+
+# Propiedad → no hay clave, solo dato firmado por el padre
+# No hay nodo hijo, no hay grant_key
+
+### Consecuencia semántica
+- El contexto de la carpeta define qué son los elementos que contiene
+- professors/juan-ruiz/ → juan-ruiz ES un objeto-profesor con identidad propia
+- transfer/[from:C-123456]/ → C-123456 es una PROPIEDAD de la transferencia
+- El mismo identificador puede ser objeto en un contexto y propiedad en otro
+
+### Conexión con propagación monádica
+- Un objeto hereda el nivel de confianza de su contenedor y puede propagarlo
+- Una propiedad no propaga confianza — es solo información
+- professors/b9/juan-ruiz/ → juan-ruiz es objeto con nivel b9
+- transfer/[from:C-123456]/ → C-123456 no tiene nivel de confianza propio
+
+### Conexión con UML
+- Objeto en carpeta ≈ composición (el padre crea y controla al hijo)
+- Propiedad ≈ atributo (dato del objeto padre)
+- extern/ ≈ agregación (referencia a objeto con vida independiente)
+
+### Pendiente
+- Añadir al whitepaper como principio de diseño en sección 2
+- Añadir al Style Guide como guía para decidir objeto vs propiedad
+- Actualizar gramática BNF — distinguir formalmente objeto de propiedad
+- Ejemplo canónico: misma entidad como objeto en professors/ 
+  y como propiedad en transfer/[from:]
+
+## EFFECTS/ — LA IO MONAD DE TRUSTEANDO
+
+### Separación mundo puro / efectos (inspirado en Haskell IO monad)
+- El grafo puro — hechos inmutables, verificables, deterministas
+- Los efectos — notificaciones, webhooks, push. Inherentemente impuros.
+- on/ es la frontera explícita entre los dos mundos (como on* en HTML/JS)
+
+### Sistema de event handlers on/
+group/trusteando/
+├── posts/                     ← datos puros
+└── on/                        ← event handlers (como onclick, onload en HTML)
+    ├── on-new-post/
+    │   └── [notify members/]/
+    ├── on-new-member/
+    │   └── [webhook "https://..."]/
+    └── on-member-leave/
+        └── [revoke-access posts/]/
+
+### Eventos naturales del protocolo
+- on-new-child/      ← se añade un nodo hijo
+- on-new-state/      ← nuevo hecho de estado (NO on-state-change — ver abajo)
+- on-key-revoked/    ← se revoca una clave
+- on-quorum-reached/ ← el quórum aprueba algo
+- on-since/          ← llega la fecha de activación
+- on-until/          ← llega la fecha de expiración
+
+### DISTINCIÓN CRÍTICA — on-new-state vs on-state-change
+- on-state-change → implica variable mutable, rompe append-only ❌
+- on-new-state    → reacción a nuevo hecho, compatible con inmutabilidad ✓
+- El grafo es append-only — no hay mutación, hay nuevos hechos
+
+## CONDICIONALES — when DECLARATIVO vs if IMPERATIVO
+
+### Distinción fundamental
+- [if condition] → imperativo, evaluación en runtime, sale del mundo declarativo
+- [when condition] → declarativo, condición como dato, compatible con el grafo
+
+### when en lugar de if
+on-new-state/
+└── [when state=brokenado]/      ← dato descriptivo, no comando
+    └── [action revoke-access]/
+
+## GUARDS LIMITADOS A PROPÓSITO — filosofía Erlang
+
+### Inspiración en Erlang
+- Los guards de Erlang son intencionalmente limitados
+- Solo comparaciones simples, sin efectos, sin llamadas arbitrarias
+- Garantiza terminación, auditabilidad y seguridad
+
+### Predicados permitidos en when (lista cerrada)
+[when state=brokenado]/          ← comparación de igualdad
+[when level<3]/                  ← comparación numérica
+[when since>=2026-01-01]/        ← comparación temporal
+[when extern/nodo/exists]/       ← comprobación de existencia
+[when quorum-reached]/           ← estado de quórum
+
+### NO permitido en when
+[when extern/nodo/_verify]/      ← no llamadas a funciones externas
+[when calculate(x+y)>100]/       ← no aritmética arbitraria
+[when fetch(url)=true]/          ← no efectos secundarios
+
+### Por qué la limitación es una garantía
+- Terminación garantizada — un when siempre evalúa en tiempo finito
+- Sin efectos secundarios — evaluar una condición no cambia el grafo
+- Auditabilidad — cualquiera puede leer un when y entender cuándo se activa
+- Seguridad — no hay inyección de código arbitrario en condiciones
+
+### Conexión con la filosofía general del protocolo
+- TrusteandoNode tiene cuatro funciones a propósito
+- when tiene un conjunto limitado de predicados a propósito
+- La potencia emerge de la composición de primitivas simples
+- Igual que Alan Kay con Smalltalk — simplicidad como garantía, no como limitación
+
+### Pendiente
+- Definir la lista completa y cerrada de predicados permitidos en when
+- Añadir on/ y when al vocabulario reservado (Apéndice A)
+- Actualizar gramática BNF con la sintaxis de event handlers
+- Decidir si on/ es parte del protocolo core o una extensión opcional
+
+## NODOS COMO CARPETAS EJECUTABLES — modelo de ejecución distribuida
+
+### Inspiración en Erlang
+- En Erlang los procesos se comunican enviando mensajes: Pid ! {message, data}
+- Llamadas a funciones en otros nodos: rpc:call(Node, Module, Function, Args)
+- Los guards limitan las condiciones de receive — limitación deliberada
+
+### Equivalente en Trusteando
+- El path es la dirección del nodo (como Pid en Erlang)
+- Los endpoints _verify, _grant, _challenge son los patrones del receive
+- POST uma.es/trusteando/professors/_verify → llamada a función en nodo remoto
+- POST uma.es/trusteando/_message → envío de mensaje entre nodos
+
+### Carpeta ejecutable
+- Una carpeta con endpoints que responden a mensajes
+- El path es la dirección del proceso
+- Los endpoints son los patrones del receive
+- Modelo: proceso Erlang distribuido sobre HTTP
+
+### Cuándo lo necesitaremos
+- Ejemplo end-to-end: hospital referencia datos de universidad
+- Transferencia bancaria entre dos bancos distintos
+- Cualquier workflow que requiera coordinación entre nodos independientes
+- Notificaciones push entre nodos
+
+### Documento a crear
+- trusteando_execution_model.md — modelo de ejecución distribuida sobre el grafo
+- Separado del whitepaper core — es una extensión, no el protocolo base
+- Desarrollar cuando tengamos ejemplos elaborados que lo exijan
+
+### Relación con el servidor de referencia actual
+- trusteando_node_server.py ya tiene los tres endpoints básicos
+- Añadir _message como cuarto endpoint cuando el modelo esté definido
+- El modelo de mensajes puede ser la base para on/ y notificaciones
+
+## TRUSTEANDO COMO WORKFLOW ENGINE DECLARATIVO
+
+### Concepto
+- El modelo de carpetas es natural para procesos multi-paso (pipelines)
+- plan/ declara los pasos y sus dependencias
+- execution/ registra el progreso real
+- Cada paso completado está firmado por quien lo completó
+
+### Ejemplo — onboarding de empleado
+```
+proceso-onboarding-empleado/
+├── plan/
+│   ├── [state approved]/
+│   └── steps/
+│       ├── step-1-contrato/
+│       │   └── [requires hr/signature]/
+│       ├── step-2-alta-seguridad-social/
+│       │   └── [requires step-1-contrato/[state completed]]/
+│       ├── step-3-acceso-sistemas/
+│       │   └── [requires step-2-alta-seguridad-social/[state completed]]/
+│       └── step-4-bienvenida/
+│           └── [requires step-3-acceso-sistemas/[state completed]]/
+└── execution/
+    ├── step-1-contrato/[state completed]/since/2026-03-22/
+    ├── step-2-alta-seguridad-social/[state completed]/since/2026-03-23/
+    └── step-3-acceso-sistemas/     ← en curso
+```
+
+### Notificaciones automáticas entre pasos con on/
+```
+on-new-state/
+└── [when step-1-contrato=completed]/
+    └── [notify step-2-responsible/]/
+```
+
+### Ventajas sobre otros sistemas de pipeline
+- Auditable — estado exacto visible en cualquier momento
+- Verificable — cada paso firmado por quien lo completó
+- Distribuido — cada paso puede estar en un nodo distinto
+- Temporal — since/ registra cuándo ocurrió cada paso
+- Condicional — [requires] declara dependencias entre pasos
+- Sin servidor central — el grafo es el estado
+
+### Casos de uso
+- Onboarding de empleados
+- Aprobación de préstamos bancarios
+- Tramitación administrativa (permisos, licencias)
+- Procesos de certificación académica
+- Contratos multi-parte con aprobaciones secuenciales
+- Procesos de compra con múltiples validaciones
+
+### Primitiva nueva necesaria
+- [requires ruta/[state X]] → dependencia entre pasos
+- Añadir al vocabulario reservado (Apéndice A)
+- Añadir al Style Guide como patrón de pipeline
+
+### Pendiente
+- Añadir al whitepaper como caso de uso en sección 7
+- Crear ejemplo canónico en el cookbook
+- Definir formalmente [requires] en la gramática
+
+## STEPS Y GESTIÓN DE ERRORES EN WORKFLOWS
+
+### Convención steps/ dentro de plan/execution/
+- plan/steps/ — pasos declarados en orden
+- execution/steps/ — progreso real con estados y fechas
+- El orden numérico 01-, 02-, 03- implica secuencialidad sin [requires] explícito
+- Un plan alcanza [state completed] cuando todos sus steps están completados
+- Eliminar pipeline/ y [requires] como opciones — steps/ es suficiente
+
+### Ciclo de vida de un step
+```
+[state pending]/      ← todavía no ha empezado
+[state in-progress]/  ← en curso
+[state completed]/    ← completado con éxito
+[state failed]/       ← falló, puede reintentarse
+[state aborted]/      ← cancelado, no se reintenta
+```
+
+### Ejemplo con fallo y reintento
+```
+execution/steps/
+├── 01-contrato/[state completed]/since/2026-03-22/
+├── 02-alta-seguridad-social/
+│   ├── [state failed]/since/2026-03-23/      ← queda en historial
+│   │   └── [reason "DNI caducado"]/
+│   └── [state completed]/since/2026-03-24/   ← reintento exitoso
+└── 03-acceso-sistemas/[state pending]/
+```
+
+### Reglas
+- Si un step tiene [state failed] o [state aborted], los steps siguientes no empiezan
+- El historial de fallos se preserva — append-only, nunca se borra
+- [state failed] → se puede reintentar publicando nuevo [state completed]
+- [state aborted] → cancelación definitiva, no se reintenta
+- [reason "texto"]/ → opcional, describe el motivo del fallo
+
+### Pendiente
+- Añadir [state failed] y [state aborted] al vocabulario reservado (Apéndice A)
+- Añadir [reason] como propiedad opcional de estado fallido
+- Añadir al Style Guide como patrón de gestión de errores en workflows
+- Actualizar el ejemplo de onboarding con estos estados
+
+## CURVA DE APRENDIZAJE — SIMPLIFICAR PRESENTACIÓN
+
+### Crítica legítima de DeepSeek
+- La especificación completa es densa — DSL, tipos BNF, event handlers, workflows
+- Puede intimidar a organizaciones pequeñas y usuarios no técnicos
+- Riesgo de que la complejidad del ecosistema oculte la simplicidad del core
+
+### Respuesta — dos documentos distintos mezclados
+- Protocolo core: TrusteandoNode, carpetas, since/until, private/, estados
+  → 20 páginas, implementable en un fin de semana
+- Ecosistema: DSL completo, tipos, on/, when, steps/, extern/, blueprints
+  → especificación completa para implementadores avanzados, opcional
+
+### Sección 1.2 añadida al whitepaper — niveles de adopción
+- Nivel 1: carpeta trusteando/ estática, cualquier webmaster, una tarde
+- Nivel 2: servidor de referencia 50 líneas, desarrollador junior, un día
+- Nivel 3: DSL completo, equipo técnico, semanas
+
+### Pendiente
+- Crear documento separado "trusteando_quickstart.md" con solo nivel 1 y 2
+- Separar el whitepaper core (secciones 1-4) del ecosistema (2.14+, apéndices)
+- Añadir al README del repositorio una guía de "por dónde empezar"
+- El servidor de referencia trusteando_node_server.py es el artefacto clave para nivel 2

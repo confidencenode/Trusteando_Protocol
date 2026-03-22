@@ -59,6 +59,33 @@ The web says: this document exists. Trusteando says: this relation exists, and i
 Both layers use the same infrastructure. Only the rules change.
 
 
+## 1.2 Adoption Levels
+
+Trusteando is a layered specification. Organisations and individuals can participate at the level that matches their technical capacity — there is no minimum requirement beyond publishing a folder.
+
+**Level 1 — Publish a static trusteando/ folder**
+
+Any webmaster can do this in an afternoon. No server-side code, no cryptographic infrastructure. The entity publishes its structure as static files. This is sufficient for membership in the graph, discovery by other nodes, and basic interoperability.
+
+```
+# Minimum viable Trusteando node
+university.es/trusteando/
+├── identity/[name "University of Example"]/
+├── professors/
+│   └── juan-ruiz/since/2021-09-01/
+└── [state verifiado]/
+```
+
+**Level 2 — Add the reference server (50 lines)**
+
+A single Python or Node script adds cryptographic verification — `respond_to_challenge`, `verify_child_authorship`, `grant_key`. A junior developer can deploy this in a day. This enables verified credentials, challenge-response authentication, and the HN bootstrapping mechanism.
+
+**Level 3 — Implement the full DSL**
+
+The complete specification — type system, `fields {}`, `extern/`, `on/` event handlers, `when` guards, `steps/` workflows — is for teams building infrastructure on top of the protocol. This level is optional for most organisations and not required to participate in the network.
+
+The rest of this document describes the complete specification. Readers interested only in Level 1 or Level 2 can focus on sections 1–4 and the reference server implementation. The DSL sections (2.14 onwards) and appendices are reference material for implementers.
+
 ---
 
 # 2. Design Principles
@@ -78,12 +105,20 @@ The entity does not need to register with any prior system. Its URL already exis
 
 The canonical URL is defined as the entity's homepage with https scheme, no trailing slash, and lowercase letters. For example: https://universidad.es
 
+**The URL is a convenience, not a constraint.** The protocol separates two independent concepts: the *identity anchor* (what makes an entity uniquely identifiable) and the *publication point* (where it publishes its graph). For the common case these coincide — an organisation uses its domain as both. But the protocol also supports autonomous identity, where the anchor is a locally generated hash with no dependency on DNS:
+
+```
+object.id          = hash("universidad-de-málaga")
+object.secret_base = hash("secret phrase known only to the university")
+```
+
+In autonomous mode, the URL is only where the node chooses to publish — not what defines its identity. The identity can exist before having a URL, survive the loss of a domain, and persist even if the original root node disappears. Registration can be anchored by electronic signature, email verification, phone verification, or any other means that demonstrates control over the identity. The URL-based mode is the pragmatic default for entities that already have a web presence. The autonomous mode is the foundation for entities that do not, or that require identity independent of any infrastructure.
 
 ## 2.2 Membership Precedes Recognition
 
 If a university publishes on its own website—for example at https://universidad.es/trusteando—the hash of a professor together with their public key, that professor already belongs to that university's identity space. The trust chain exists before the root node formally validates it.
 
-The root node does not create the relationship between the university and its professor—it elevates it to cryptographically verifiable trust for third parties that do not know either party. For a verifier who already knows and trusts the university, the publication at its URL is enough.
+The root node does not create the relationship between the university and its professor—it elevates it to cryptographically verifiable trust for third parties that do not know either party. For a verifier who already knows and trusts the university, the publication at its URL is enough. Section 2.15 develops the full gradient from self-declaration to institutional recognition, showing how the same mechanism — placing a node in a folder — operates at every level of trust.
 
 
 ## 2.3 Contextual Trust Suffices for Everyday Use
@@ -362,6 +397,44 @@ Trusteando shares concepts with both programming languages and modelling languag
 
 What Trusteando has that programming languages do not: time as a native dimension (`since/until`), cryptographic verifiability on every node, and distribution — objects live on independent servers across the web.
 
+---
+
+## 2.15 Identity as an Aggregate of Relations
+
+A node's identity is not a single authoritative fact — it is the sum of all the relations that point to it. This principle, implicit throughout the protocol, merits explicit statement.
+
+**Declaration as origin.** A node is born by declaring itself. The simplest possible identity is a hash of a self-description:
+
+```
+node7/trusteando/identity/
+└── [declared-hash hash("person who says dni 12312312A")]/
+```
+
+This is a b9-level identity — the node says something about itself, and no one else has confirmed it. The hash is stable: it is the anchor that other nodes can reference without ambiguity.
+
+**Corroboration as the base mechanism.** Adding a node to a folder is corroborating it. No special keyword is needed — the folder structure is the corroboration:
+
+```
+juan.es/trusteando/friends/
+├── node7/since/2026-03-18/     ← Juan says node7 is his friend
+├── node8/since/2026-03-18/
+└── node9/since/2026-03-18/
+```
+
+Juan exercises his authority over his own space `juan.es/trusteando/`. His signature over his structure guarantees authenticity. Any verifier can check `juan.es/trusteando/friends/node7/` and confirm that Juan placed that node there. The trust level of this corroboration is Juan's trust level — no higher.
+
+**The identity gradient.** From self-declaration to state recognition, the same mechanism operates at every level:
+
+| Level | Example | Who signs | What it proves |
+|---|---|---|---|
+| Self-declaration | `node7/[declared-hash H]/` | node7 | "I say I am X" |
+| Personal relation | `juan/friends/node7/` | Juan | "Juan says node7 is his friend" |
+| Institutional relation | `university/professors/node7/` | university | "The university says node7 is a professor" |
+| Official identity | `state/citizens/node7/` | state | "The state says node7 exists legally" |
+
+Each level adds corroboration from a source with more established authority. The verifier decides which evidence is sufficient for their use case. For a friend of Juan, Juan's word is enough. For a bank, the state level is required.
+
+**The graph is the registry.** There is no central database of identities — only nodes and signed edges. Node7's identity is the aggregate of everything the graph says about it: its own declaration, its friends' corroborations, its institutional memberships, its official recognitions. Identity is not stored — it is computed from the graph at query time.
 
 ---
 
@@ -796,6 +869,8 @@ The external verifier does not choose arbitrarily whom to ask—it always querie
 ## 4.11.5 Security Properties Emerging from Simplicity
 
 Non-repudiation: only the key holder can produce a correct respond_to_challenge. Non-reusable: context_elements includes verifier_id and timestamp, unique per interaction. Non-transferable: the response is valid only for that specific set of elements. No key disclosure: reduce_hash is one-way; the response does not allow recovering the key. Parent verification: verify_child_authorship recalculates without needing the child. Trust hierarchy: grant_key is the only way to create a valid child node, always from parent to child. External verification: any system—forums, mail, documents—can use the same mechanism by sending a challenge and verifying the response with the parent. There are no special cases. There is no hidden state. The entire system is deterministic, auditable, and verifiable by construction.
+
+**Verification is O(1) in chain depth.** A common misconception is that verifying a deeply nested node requires traversing the entire chain from root to leaf. This is incorrect. `verify_child_authorship` requires exactly two interactions regardless of chain depth: the verifier receives the proof from the child node, and makes a single HTTP request to the immediate parent. The parent computes `grant_key(child_path)` and `reduce_hash(child_key, context)` locally — two hash operations — and returns the result. The depth of the hierarchy (root → country → university → faculty → professor) is irrelevant to verification cost. The only case where chain depth matters is initial trust discovery — establishing that a previously unknown entity is recognised by a root — and this is resolved once per entity with a cacheable signed result (section 4.3).
 
 
 ---
@@ -1238,8 +1313,38 @@ The route grammar defines the syntax but not the vocabulary. Opening the vocabul
 
 ## 12.10 Name Discovery and Registry
 
-The protocol identifies entities by URL hash, not by name. Associating a human-readable name—“Universidad de Málaga”—with its URL uma.es is an external step that is unspecified in this version. A node can publish its official name as a property: [nombre-oficial "Universidad de Málaga"]/[indicates]/[source uma.es]. Roots and high-reputation nodes can attest that association by publishing their own version of the fact, creating a decentralized name registry where trust in the association is a matter of degree resolvable through the protocol’s quorum mechanism. The formal specification of this mechanism will be addressed in future versions.
+The protocol identifies entities by URL hash or autonomous identifier, not by human-readable name. The association between a name — "Universidad de Málaga" — and its cryptographic identifier raises a problem with three layers of complexity.
 
+**Layer 1 — The entity publishes its own name (partial solution)**
+
+The node can publish its readable name in its `identity/` folder:
+
+```
+uma.es/trusteando/identity/
+├── [official-name "Universidad de Málaga"]/
+├── [acronym "UMA"]/
+└── [also-known-as "University of Malaga"]/
+```
+
+For any verifier who already knows the URL `uma.es`, the association is direct and verifiable — the node declares it, signed with its own key. This resolves the problem for anyone who already has the URL.
+
+**Layer 2 — Reverse discovery (name → identifier)**
+
+The real problem is discovery: a user who only knows the name "Universidad de Málaga" needs a mechanism to find its identifier. The protocol does not formally specify this mechanism. Three non-exclusive options exist:
+
+*Option A — Centralised registry at the root node.* The root maintains a registry of recognised names: `T10/names/universidad-de-malaga/ → uma.es`. Each entry is signed by the publishing node.
+
+*Option B — Sector blueprints with standard vocabulary.* For specific domains — education, healthcare, public administration — canonical paths are defined: `T10/blueprints/education/spain/universities/uma.es/`. Nodes publish their presence in these blueprints; a search engine can index them without depending on a single central registry.
+
+*Option C — External search engines (outside the protocol).* The simplest solution compatible with the protocol's philosophy: delegate discovery to external services that index the graph, the same way Google indexes the web. The protocol defines how data is published so it can be indexed; it does not need to specify how indices are built.
+
+**Layer 3 — Name conflict resolution**
+
+Two nodes could claim the same readable name. Without an authoritative registry, the protocol alone cannot resolve which node has the right to the name. The solution relies on the quorum system (section 4.10): a name is considered established when a quorum of reputable nodes publish the same association. Disputes are resolved through the dispute resolution mechanism (Appendix B), where the weight of evidence — which nodes support each version — determines the outcome.
+
+**Direction for future versions**
+
+The formal name system specification will have three components: local declaration by the node, third-party attestation by reputable nodes, and quorum-based resolution. The resulting system is decentralised, dispute-resistant, and compatible with the rest of the protocol without adding new infrastructure. The concrete implementation will be addressed in v0.3.
 
 ## 12.11 Active Authentication with Key Rotation
 
@@ -1248,7 +1353,32 @@ The protocol defines the emergency key for migrations but does not specify an in
 
 ## 12.12 Metadata Leakage in Path Structure
 
-The private/ folder hides the content of a relationship but not necessarily its existence or type. A path like empresa.com/trusteando/fusiones-y-adquisiciones/private/ reveals sensitive information even if the content is protected—the folder name already leaks something. The solution is to use opaque names for sensitive folders: a folder whose name is a non-descriptive identifier reveals nothing about its content. The protocol allows this without any extension—the owner chooses the name of their folders. The convention 1234/[folder-has-private-name]/ (pending formal specification) explicitly declares this intention so tools can treat it properly.
+The position of `private/` in the hierarchy determines what metadata leaks to external observers. Consider these two paths:
+
+```
+# Leaks metadata — the existence of a mergers process is visible
+empresa.com/trusteando/mergers-acquisitions/private/
+
+# No metadata leak — only the existence of private/ is visible
+empresa.com/trusteando/private/mergers-acquisitions/
+```
+
+In the first pattern, an external observer can see that a mergers-and-acquisitions process exists, even though its content is protected. In the second, they see only that a `private/` folder exists — nothing about what lies beneath.
+
+The design principle is: **place `private/` as high as possible in the hierarchy**. It acts as a semantic firewall — hiding not just the content but the existence of what lies beneath. If the existence of a folder is itself sensitive information, it belongs inside `private/`, not the other way around.
+
+```
+# ✅ Good — private/ as firewall
+trusteando/private/mergers-acquisitions/
+trusteando/private/litigation/
+trusteando/private/hr/dismissals/
+
+# ❌ Bad — leaks structure
+trusteando/mergers-acquisitions/private/
+trusteando/hr/dismissals/private/
+```
+
+This converts what might appear to be a weakness of the protocol into a non-weakness, provided implementations follow this convention. The Style Guide makes this explicit.
 
 
 ## 12.13 Latency in Critical Security Revocation
@@ -1451,6 +1581,26 @@ externals/          ← links to uncontrolled external systems
 
 Any folder under externals/ declares that the node links to something it does not control. The semantics are opposite to the rest of the folders—outside externals/, controlling the URL implies controlling the content. Inside externals/, the node only guarantees the authenticity of the link, not the destination's content.
 
+### A.4.1 private/externals/ — Private references to third-party facts
+
+The combination of `private/` and `externals/` is a distinct and valuable pattern: a private reference to a fact whose authority resides in another node.
+
+```
+person/trusteando/private/externals/
+└── hacienda/
+    └── tax-debt-status/ → https://aeat.es/expedientes/12345
+```
+
+The person is declaring four things simultaneously: a fact exists (Hacienda considers them a debtor), the authority over that fact is Hacienda, not the person (`externals/`), the evidence is at a specific URL, and the person does not want this reference to be publicly visible (`private/`).
+
+This pattern solves a classic problem in verifiable identity systems:
+
+- **Without Trusteando:** the person must request a certificate from Hacienda each time
+- **With Trusteando:** the person publishes the reference once and reuses it as many times as needed, controlling who can see it via `grantReveal()`
+
+The authority over the fact remains with the third party. The person certifies nothing — they only point to where the certification lives. This is honest: `externals/` explicitly declares that the destination is not under the person's control.
+
+Use cases: expedients and registries the person does not control but can reference; initiating verification chains without exposing the reference publicly; demonstrating facts like "I am paying a tax plan" or "my criminal record is clean" by granting temporary access to the authoritative source.
 
 ## A.5 The since/ and until/ Convention
 
@@ -2351,6 +2501,39 @@ physical presence and purchase verified
 
 The order matters for queries: reviews with type ≥ 2 return only reviews with verified physical presence. Counting unique reviews always means counting distinct set_id values under reviews/review/—the indexes in calculated/ are derived views, not duplicates.
 
+
+## D.2b Publishing Facts vs Publishing an Index of Others' Facts
+
+A critical semantic distinction in the business layer: the restaurant does not invent reviews — it publishes an *index* of reviews that exist in other nodes. The `[source]` property is the corroboration mechanism:
+
+```
+mi-restaurante.es/transactions/trusteando/
+├── offers/                         ← the restaurant publishes its own offers
+│   └── menu-del-dia/
+│       ├── [price 15]/
+│       └── valid/until/2026-03-31/
+└── reviews/                        ← an index of reviews received
+    ├── pepe/
+    │   ├── [rating 4]/
+    │   └── [source pepe.es/reviews/mi-restaurante]/  ← original review lives here
+    └── ana/
+        ├── [rating 5]/
+        └── [source ana.es/reviews/mi-restaurante]/
+```
+
+The restaurant is saying: "I have seen this review and I include it in my index — here is the verifiable source." The original review is signed by Pepe at `pepe.es/` — the restaurant cannot forge it. A verifier can cross-reference both sources.
+
+This is analogous to how Google shows TripAdvisor reviews: Google indexes them, not invents them. The `[source]` property makes this explicit — the restaurant does not claim authorship of the review, only that it has indexed it.
+
+Three types of content coexist in `transactions/trusteando/`:
+
+| Folder | What the restaurant publishes | Authority |
+|---|---|---|
+| `offers/` | Its own commercial offers | The restaurant |
+| `reviews/` | An index of received reviews | Original authors via `[source]` |
+| `reputation/calculated/` | Its own computed score | The restaurant (signed, auditable) |
+
+**`calculated/` is a declaration, not a magic state.** The restaurant signs its own calculation. If it lies, anyone can verify by consulting the source reviews. Lying has a reputational cost. An external aggregator can ignore the restaurant's `calculated/` and compute its own metric independently.
 
 ## D.3 The calculated/ Folder
 

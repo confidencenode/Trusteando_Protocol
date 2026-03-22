@@ -269,6 +269,25 @@ professors/juan-ruiz/public/email/    ← unnecessary
 professors/juan-ruiz/email/           ← public by default
 ```
 
+### 5.1b private/ as a semantic firewall — position matters
+
+The position of `private/` in the hierarchy determines what metadata leaks to external observers. Place `private/` as high as possible — it acts as a firewall that hides not just the content but the existence of what lies beneath.
+
+```
+# ✅ Good pattern — private/ as firewall
+trusteando/private/mergers-acquisitions/
+trusteando/private/litigation/
+trusteando/private/hr/dismissals/
+
+# ❌ Bad pattern — leaks metadata
+trusteando/mergers-acquisitions/private/
+trusteando/hr/dismissals/private/
+```
+
+In the good pattern, an external observer sees only that a `private/` folder exists. They cannot know how many subfolders it contains or what their names are. In the bad pattern, the existence of sensitive processes (mergers, litigation, dismissals) is visible even though the content is protected.
+
+**Rule:** If the existence of a folder is itself sensitive information, place it inside `private/`, not the other way around.
+
 ### 5.2 private/ for content requiring permission
 
 ```
@@ -278,6 +297,22 @@ professors/juan-ruiz/
 └── private/
     └── salary/         ← requires grantReveal()
 ```
+
+### 5.2b private/externals/ — private references to third-party facts
+
+The combination of `private/` and `externals/` creates a powerful pattern: a private pointer to a fact whose authority resides in a third party.
+
+```
+person/trusteando/private/externals/
+└── tax-authority/
+    └── debt-status/ → https://aeat.es/expedientes/12345
+```
+
+The person points to an authoritative fact without claiming control over it (`externals/`), and keeps the reference private until they choose to share it (`private/` + `grantReveal()`).
+
+**When to use:** expedients, registries, or documents the node does not control but can reference. Useful for "I can prove X if you need it" without exposing the reference publicly.
+
+**What it is not:** the node is not certifying the fact — only pointing to where the certification lives. The authority remains with the third party.
 
 ### 5.3 Folder-level private/ hides the relation itself
 
