@@ -1,0 +1,593 @@
+PENDIENTES — sesión 2026-03-21
+===============================
+
+## WHITEPAPER — cambios por incorporar
+
+### Sección nueva: Registro de usuarios (campaña comercial)
+- Marco de tres niveles: brokenado / verifiado / trusteado
+- Estructura de path para registro:
+    T10/spain/register/brokenado/[email:juan@example.com]/
+    T10/spain/register/verifiado/[email:juan@example.com][phone:+34612345678]/
+    T10/spain/register/trusteado/[dni:12312312A][email:juan@example.com][phone:+34612345678][signature:true]/
+- Convención [instance:N] solo para duplicados (caso mayoritario no lleva instance)
+- Pago de 10€ como barrera anti-bot para brokenados
+- Advertencia al usuario si recibe [instance:2] o superior — hay otro registro con los mismos datos
+- Nota: ordenación alfabética de campos es sugerencia, no imposición
+- Documentar duda de diseño: ¿el sufijo instance forma parte de la clave derivada? (sí, para que dos brokenados con mismo email tengan claves distintas)
+
+### Sección nueva: Nodos federados (external-root)
+- Distinción entre nodos internos (clave derivada de T10 por grant_key) y nodos federados (clave propia elegida por el dueño)
+- Declaración en el grafo: [external-root]/ indica que la clave no deriva de T10
+- T10 avala existencia del nodo pero no puede verificar credenciales internas
+- Analogía con email: @uma.es pertenece al namespace global pero uma.es lo controla independientemente
+- Para verificar credencial de profesor UMA hay que preguntar a UMA, no a T10
+
+### Sección 4.10 — nota adicional
+- [quorum 1] válido para nodos federados con external-root (ya está pero conectar con el nuevo concepto)
+
+### Sección 2.12 — isomorfía
+- Ya incorporada, revisar que la versión en inglés refleja los cambios
+
+## STYLE GUIDE — cambios por incorporar
+
+### Gramática de selección (nueva sección)
+- select-one-from { opción-a, opción-b }
+- select-one-or-more-from { ... }
+- select-a-subset-from { ... }
+- Uso de {} para grupos de opciones
+
+### Descripción de campos con tipos (nueva sección)
+- fields { campo is-type tipo }
+- Tipos básicos: string, date, boolean, enumerate, subset-from-enumerate
+- Ejemplo:
+    registration/fields {
+        name is-type string
+        type is select-one-from { brokenado, verifiado, trusteado }
+        data is select-subset-from { email, phone, dni }
+        date is-type date
+    }
+- Nota: campos ordenados alfabéticamente es convención recomendada, no obligatoria
+
+### Convención [instance:N]
+- Solo para duplicados, no en el caso mayoritario
+- El nodo asigna el número — no puede ser elegido por el usuario
+
+## PROPUESTAS — cambios por incorporar
+
+### P9 — Nodos federados con external-root
+- Modelo federado sobre T10
+- Casos: universidades, empresas, clubes deportivos
+- Diferencia con nodos internos: T10 avala existencia, no contenido
+
+### P10 — Campaña comercial de registro individual
+- Los tres niveles como producto
+- Barrera anti-bot de 10€ para brokenados
+- Base de datos de contadores para [instance:N] (Cloudflare KV)
+- Slogans por nivel:
+    Trusteado: "para cuando importa de verdad" (job interviews, contratos)
+    Verifiado: "me puedes contactar"
+    Brokenado: "soy real, solo no te digo quién" (festivales, eventos casuales)
+
+## WALLET — mejoras pendientes
+
+- Pantalla de registro con los tres niveles (brokenado/verifiado/trusteado)
+- Flujo de verificación de email/teléfono para nivel verifiado
+- Flujo completo de reseñas verificadas para restaurantes
+- QR codes para intercambio de retos
+- Exportar/importar identidad
+- Integración con Cloudflare Worker + KV store como nodo servidor
+- Firma electrónica para nivel trusteado
+
+## DUDAS DE DISEÑO ABIERTAS
+
+1. ¿El sufijo [instance:N] forma parte del path que genera la clave? (recomendado: sí)
+2. ¿Ordenación alfabética de campos es obligatoria o sugerida? (recomendado: sugerida)
+3. ¿Cómo parsear firma electrónica con datos adjuntos (email, phone, name)?
+4. ¿Qué pasa si alguien intenta registrarse con [instance:2] directamente sin pasar por el nodo?
+5. ¿El número [instance] se publica en el grafo o solo el nodo lo conoce?
+6. Para nodos federados: ¿cómo declara T10 que avala la existencia pero no el contenido?
+
+## TRADUCCIÓN
+
+- trusteando_whitepaper_v02_en.md — traducido por Codex, pendiente de revisar y hacer commit
+- Incorporar a la versión inglesa todos los cambios de esta sesión una vez subido el archivo
+
+## OTROS
+
+- Calcular h1 y h2 reales en Apéndice F (solo el autor puede hacerlo)
+- Cookbook de ejemplos prácticos — esperar a wallet probado con casos reales
+- Experimento HN con tres roots independientes
+- Investigar integración con Cloudflare Workers + D1/KV para nodo servidor
+
+## POSICIONAMIENTO — sección nueva por añadir
+
+### "Trusteando vs plataformas cerradas" (para trusteando_transparency.md o documento nuevo)
+- Slack/WhatsApp: grupos invisibles hasta que te invitan, estructura controlada por la plataforma,
+  silos independientes, desaparecen si la plataforma cierra
+- Trusteando: grupos públicos por defecto, estructura controlada por quien publica,
+  descubrimiento universal, persiste independientemente de cualquier plataforma
+- Frase clave: "WhatsApp te conecta con quien ya conoces. Trusteando te permite descubrir quién existe."
+- Caso médico: hoy no hay forma de saber qué grupos de especialistas existen en España
+  sin estar ya dentro del círculo. Con Trusteando el grafo es consultable por cualquiera.
+- Ventaja de estandarización: un médico verificado en uma.es es visible desde cualquier nodo.
+  Facilita formatos estándar por sector (médicos, abogados, profesores, etc.)
+- Incorporar a: trusteando_transparency.md o crear trusteando_positioning_social.md
+
+## NOTAS DE PROCESO
+
+### Uso de LLMs externos
+- Gemini: experiencia negativa — reemplazó una sección importante con contenido más corto y peor,
+  lo reconoció al señalarlo. No usar para modificar contenido existente.
+- Regla para LLMs externos: traducción y adiciones SÍ, modificaciones de contenido existente NO
+  (al menos sin mostrar explícitamente el antes y el después para comparar)
+- Codex: buena experiencia para traducción del whitepaper al inglés
+
+## DOBLE CLAVE INSTITUCIONAL + T10
+
+### Concepto
+- Cada nodo hijo recibe dos claves independientes:
+  K_institucional = institucion_node.grant_key("ruta/del/hijo")
+  K_T10 = T10_node.grant_key("institucion.es/ruta/del/hijo")
+- La institución es responsable legalmente de la clave institucional
+- T10 actúa como verificación independiente adicional
+
+### Jerarquía de prevalencia
+- Institucional válida + T10 válida  → confianza máxima
+- Institucional válida + T10 inválida → válido con aviso (T10 no reconoce el nodo)
+- Institucional inválida + T10 válida → sospechoso
+- Ambas inválidas                     → rechazado
+
+### Analogía
+- Como un documento con firma del emisor (institucional) y sello notarial (T10)
+- El documento es válido con solo la firma — el notario añade verificación independiente
+
+### Pendiente
+- Definir cómo se declaran las dos claves en el grafo
+- Definir el proceso de sincronización entre clave institucional y T10
+- Incorporar al whitepaper como extensión de la sección 4.10
+
+## WALLET COMO GESTOR DE CLAVES UNIVERSAL
+
+### Concepto
+- El wallet no es solo identidad — es un gestor de claves para cualquier acción verificable
+- Ejemplo bancario:
+    bank/santander/user-juan-ruiz/transfer/fields {
+        from-account is-type string
+        to-account   is-type string
+        amount       is-type decimal
+        currency     is select-one-from { EUR, USD, GBP }
+        concept      is-type string
+        date         is-type date
+    }
+- La transferencia es una acción firmada con respond_to_challenge
+- Santander verifica con verify_child_authorship
+
+### Ventaja clave
+- El schema es público y estándar
+- Dos bancos que implementen el mismo schema son interoperables por construcción
+- No requiere acuerdos bilaterales entre bancos — solo adoptar el mismo schema
+- Es el argumento de interoperabilidad del whitepaper aplicado a pagos
+
+### Otros casos de uso del wallet como gestor de claves
+- Recetas médicas verificables
+- Contratos de trabajo
+- Reservas verificables (restaurantes, hoteles, vuelos)
+- Votaciones verificables
+- Acceso a recursos (edificios, sistemas, APIs)
+
+### Pendiente
+- Añadir al whitepaper como extensión de la sección 7 (casos de uso)
+- Desarrollar el schema de transferencia bancaria como ejemplo canónico
+- Añadir al Style Guide como patrón de acción verificable con fields {}
+
+## SISTEMA DE TIPOS — extensión del Style Guide y posible Apéndice G
+
+### string-length y string-pattern como verificadores básicos
+- string                        → sin restricción
+- string-length:9               → exactamente 9 caracteres
+- string-length:8-9             → entre 8 y 9 caracteres
+- string-pattern:[0-9]{8}[A-Z]  → regex (más potente)
+- dni-es                        → tipo específico con algoritmo completo
+
+### Jerarquía de tipos para documentos de identidad españoles
+- string-length:9   → 9 caracteres, sin más verificación
+- dni-es            → 8 dígitos + letra calculada (algoritmo módulo 23)
+- nie-es            → X/Y/Z + 7 dígitos + letra
+- nif-es            → dni-es | nie-es | cif-es  (unión de tipos, notación BNF)
+
+### Tipos numéricos con restricciones
+- decimal                    → sin restricción
+- decimal-positive           → mayor que cero
+- decimal-range:0.01-999999  → rango explícito
+
+### Tipos primitivos verificables por algoritmo (format-verified)
+- iban          → algoritmo módulo 97
+- dni-es        → letra calculada módulo 23
+- cif-es        → dígito de control
+- luhn-card     → algoritmo de Luhn (tarjetas de crédito)
+- isbn          → dígito de control
+- phone-e164    → formato E.164 internacional
+- email         → RFC 5322
+- url           → RFC 3986
+
+### Gramática formal en notación BNF — candidata a Apéndice G
+
+<type>        ::= <primitive> | <verified> | <composite>
+
+<primitive>   ::= "string" | "decimal" | "integer" | "boolean" | "date"
+
+<verified>    ::= <primitive> "-length:" <integer>
+               |  <primitive> "-length:" <integer> "-" <integer>
+               |  <primitive> "-pattern:" <regex>
+               |  <domain-type>
+
+<domain-type> ::= "iban" | "dni-es" | "nie-es" | "nif-es"
+               |  "phone-e164" | "email" | "url"
+               |  "isbn" | "luhn-card"
+
+<composite>   ::= "select-one-from" "{" <options> "}"
+               |  "select-subset-from" "{" <options> "}"
+               |  <type> "|" <type>
+
+<options>     ::= <identifier> | <identifier> "," <options>
+
+<fields>      ::= "fields" "{" <field-list> "}"
+<field-list>  ::= <field> | <field> <field-list>
+<field>       ::= <identifier> "is-type" <type>
+               |  <identifier> "is" <composite>
+
+### Ejemplo completo — transferencia bancaria
+bank/santander/user-juan-ruiz/transfer/fields {
+    from-account is-type iban
+    to-account   is-type iban
+    amount       is-type decimal-positive
+    currency     is select-one-from { EUR, USD, GBP }
+    concept      is-type string
+    date         is-type date
+}
+
+### Ejemplo completo — registro de usuario
+T10/spain/register/fields {
+    name             is-type string
+    type             is select-one-from { brokenado, verifiado, trusteado }
+    dni              is-type nif-es
+    email            is-type email
+    phone            is-type phone-e164
+    signature        is-type boolean
+    date             is-type date
+}
+
+### Pendiente
+- Decidir si la gramática BNF va como Apéndice G del whitepaper
+- Ampliar la lista de domain-types con tipos europeos (VAT-number, etc.)
+- Definir cómo el wallet valida tipos antes de firmar
+- Definir cómo el nodo rechaza fields con tipos inválidos
+
+## SCOPE LEGAL Y RESPONSABILIDAD DE SUBCARPETAS
+
+### Concepto
+- Una subcarpeta no solo define identidad sino también contexto de uso válido
+  y responsabilidad legal asociada
+- El nodo padre declara explícitamente para qué sirve la subcarpeta
+
+### Nuevas propiedades de scope
+- [only-valid-for X Y Z]     → uso exclusivo declarado (más fuerte que valid-for)
+- [not-valid-for X Y Z]      → usos explícitamente excluidos
+- [liability node-url]       → quién asume responsabilidad legal
+- [legal-terms url]          → enlace a términos legales machine-readable
+- [max-value-per-use EUR:50] → límite de valor por transacción
+
+### Ejemplo completo
+uma.es/trusteando/students/brokenado/
+├── [only-valid-for events-discounts festivals concerts]/
+├── [not-valid-for academic-credentials contracts payments]/
+├── [liability uma.es]/
+├── [legal-terms uma.es/trusteando/legal/student-brokenado-terms]/
+├── [max-value-per-use EUR:50]/
+└── [state brokenado]/
+
+### Jerarquía de responsabilidad por nivel
+- brokenado → scope mínimo, responsabilidad mínima, max-value bajo
+- verifiado  → scope medio, responsabilidad media, contacto verificado
+- trusteado  → scope pleno, responsabilidad plena, identidad verificada
+
+### Consecuencia para verificadores
+- Un organizador de festival consulta [only-valid-for] antes de aceptar la credencial
+- Si el scope no incluye su caso de uso, puede rechazarla aunque sea técnicamente válida
+- Es un contrato machine-readable entre emisor y verificadores potenciales
+
+### Pendiente
+- Añadir [only-valid-for], [not-valid-for], [liability], [legal-terms],
+  [max-value-per-use] al vocabulario reservado (Apéndice A)
+- Definir vocabulario estándar para los valores de scope
+  (events, discounts, festivals, concerts, academic-credentials, contracts, payments...)
+- Añadir al Style Guide como patrón de declaración de scope
+- Considerar si [only-valid-for] es obligatorio para niveles brokenado
+
+## CORRECCIÓN — only-valid-for vs example-not-valid-for
+
+### Regla
+- [only-valid-for] y [not-valid-for] son mutuamente excluyentes — nunca los dos juntos
+- [only-valid-for] = scope cerrado, todo lo no declarado queda excluido por definición
+- [example-not-valid-for] = scope abierto con exclusiones ilustrativas (no exhaustivas)
+- El prefijo "example-" indica que la lista es orientativa, no completa
+
+### Cuándo usar cada uno
+- Quiero limitar a casos específicos → [only-valid-for events-discounts festivals]
+- Quiero scope abierto pero dar ejemplos de exclusión → [example-not-valid-for contracts payments]
+- Ambos en la misma carpeta → ERROR, contradicción no permitida
+
+### Ejemplo corregido
+uma.es/trusteando/students/brokenado/
+├── [only-valid-for events-discounts festivals concerts]/
+├── [liability uma.es]/
+├── [legal-terms uma.es/trusteando/legal/student-brokenado-terms]/
+├── [max-value-per-use EUR:50]/
+└── [state brokenado]/
+
+### Corrección en Apéndice A
+- Eliminar [not-valid-for] del vocabulario reservado
+- Añadir [example-not-valid-for] como alternativa a [only-valid-for]
+- Documentar que son mutuamente excluyentes
+
+## PROPAGACIÓN MONÁDICA DEL NIVEL DE CONFIANZA
+
+### Concepto — analogía con mónadas de Haskell
+- brokenado, verifiado, trusteado son contenedores que propagan su nivel
+- Una función no puede elevar el nivel de confianza — solo mantenerlo o bajarlo
+- El nivel del resultado es el MÍNIMO de todos los niveles de la cadena
+
+### Regla del mínimo
+- trusteado(X) → función verifiado → verifiado(resultado)
+- trusteado(X) → función brokenado → brokenado(resultado)
+- verifiado(X) → función brokenado → brokenado(resultado)
+- verifiado(X) → función trusteado → verifiado(resultado)  ← mínimo es verifiado
+
+### Estructura del grafo con niveles
+festival/trusteando/attendees/
+├── t10/   ← trusteado con firma electrónica (10 letras, nivel más alto)
+├── t9/    ← trusteado estándar (9 letras)
+├── v9/    ← verifiado (9 letras)
+└── b9/    ← brokenado (9 letras)
+
+### Aliases cortos
+- t10 = trusteado (10 letras) — nivel más alto, firma electrónica
+- t9  = trusteado (9 letras)  — nivel estándar verificado
+- v9  = verifiado (9 letras)
+- b9  = brokenado (9 letras)
+
+### DUDA DE DISEÑO ABIERTA
+- ¿t10 y t9 son niveles distintos o aliases del mismo nivel trusteado?
+- Si son distintos: jerarquía completa sería t10 > t9 > v9 > b9
+- Si t10 es alias de trusteado con firma electrónica y t9 sin ella,
+  entonces son niveles distintos y t10 > t9
+- Definir criterio formal para distinguir t10 de t9
+
+### Consecuencia para el grafo
+- Un nodo en attendees/b9/ es reconociblemente brokenado sin consultar cada entrada
+- El organizador consulta la subcarpeta del nivel que necesita
+- La composición de niveles es automática y verificable
+
+## CORRECCIÓN — T10 vs t9/v9/b9
+
+### Distinción definitiva
+- T10 = nombre del protocolo y raíz del path (Trusteando, 10 letras)
+- t9  = nivel de confianza máximo en la red (trusteado, 9 letras)
+- v9  = nivel medio (verifiado, 9 letras)
+- b9  = nivel básico (brokenado, 9 letras)
+
+### Jerarquía de confianza
+t9 > v9 > b9
+
+### Ejemplos de path
+T10/spain/register/t9/user-juan/    ← T10 es raíz, t9 es nivel
+T10/spain/register/v9/user-ana/
+T10/spain/register/b9/user-dang/
+festival/trusteando/attendees/b9/user-dang/  ← nodo independiente, sin T10 en path
+
+### Correcciones pendientes en documentos
+- Revisar todas las menciones de t10 como nivel de confianza y reemplazar por t9
+- T10 solo aparece como raíz de path o nombre del protocolo
+- Actualizar whitepaper, style guide y pendientes anteriores
+
+## ROOT SIN DUEÑO — CLAVE ALEATORIA DE ARRANQUE
+
+### Concepto
+- El root genera una clave aleatoria de 256 bits al arrancar
+- La clave nunca se almacena — desaparece tras derivar las claves réplica
+- Nadie, ni el operador, conoce la clave raíz
+- Resistente a coerción: no hay nadie a quien presionar
+
+### Proceso de arranque
+1. Servidor genera root_key = secrets.token_hex(32)
+2. Deriva claves para 3 réplicas: replica_node.grant_key("replica-i-timestamp")
+3. Distribuye claves réplica por canal seguro
+4. Borra root_key de memoria — desaparece para siempre
+5. Cada usuario se registra en las 3 réplicas simultáneamente
+
+### Operación normal (quórum 2 de 3)
+- Verificación requiere 2 de 3 réplicas
+- Si una réplica cae, las otras dos siguen operando
+
+### Recuperación si cae una réplica
+- Las dos réplicas supervivientes tienen quórum
+- Generan nueva réplica con clave aleatoria nueva
+- Usuarios se re-registran en la nueva réplica
+- Las credenciales existentes siguen válidas — no se invalidan
+- El sistema vuelve a tener 3 nodos operativos
+
+### Propiedades
+- Sin dueño conocido: nadie puede reclamar control del root
+- Resistente a coerción: no hay nadie a quien presionar
+- Verificable: réplicas se verifican entre sí via quórum
+- Antifrágil: si una réplica cae el sistema se recupera solo
+- Analogía: Bitcoin — diseñado para funcionar sin depender de su creador
+
+### Pendiente
+- Definir el protocolo de re-registro en nueva réplica
+- Definir cómo las réplicas supervivientes autentican la nueva réplica
+- Incorporar al whitepaper como extensión de sección 4.10 (quórum)
+- Implementar en el servidor Cloudflare Worker
+
+## ROOT CON CLAVE ALEATORIA SIN DUEÑO
+
+### Concepto
+- El root genera una clave aleatoria de 256 bits en el primer segundo de arranque
+- Deriva claves para las réplicas inmediatamente
+- La clave raíz desaparece de memoria — nadie la conoce, ni el operador
+- Las réplicas son nodos independientes con claves distintas, no copias entre sí
+
+### Proceso de arranque
+```python
+def bootstrap_root():
+    root_key = secrets.token_hex(32)       # clave aleatoria, nunca almacenada
+    root_node = TrusteandoNode(root_key)
+    
+    # Cada réplica recibe clave única — no son copias
+    replica_1_key = root_node.grant_key("replica-1")
+    replica_2_key = root_node.grant_key("replica-2")
+    replica_3_key = root_node.grant_key("replica-3")
+    
+    del root_key, root_node  # desaparece para siempre
+    return [replica_1_key, replica_2_key, replica_3_key]
+```
+
+### El usuario recibe tres claves independientes
+- Una de cada réplica — distintas entre sí
+- Para autenticarse necesita quórum 2 de 3
+- Si una réplica cae o es comprometida, las otras dos mantienen la identidad válida
+- Un atacante que robe una clave no obtiene las otras dos
+
+### PROBLEMA ABIERTO — control de grant_key tras el arranque
+- Si la clave raíz desaparece, ¿quién puede ejecutar grant_key para nuevos usuarios?
+- Necesita una función que controle quién recibe claves sin conocer la clave raíz
+
+### Tres opciones
+
+**Opción 1 — réplicas con autoridad delegada**
+- Cada réplica puede derivar claves de usuarios dentro de su subárbol
+- El root delega grant_key a las réplicas en el arranque
+- Más simple pero concentra autoridad en las réplicas
+
+**Opción 2 — quórum de réplicas para aprobar grant_key**
+- Usuario solicita clave
+- 2 de 3 réplicas verifican requisitos (pago, verificación, etc.)
+- Cada réplica otorga su propia clave independientemente
+- Usuario recibe 3 claves — una de cada réplica que aprobó
+- Más robusto, más coherente con el protocolo
+
+**Opción 3 — función pública auditable**
+- Función pública que cualquiera puede auditar
+- define criterios: pago verificado, no registrado previamente, cumple requisitos
+- Las réplicas ejecutan la misma función y aprueban o rechazan
+
+### Pendiente
+- Decidir entre las tres opciones o combinarlas
+- Definir cómo se sincronizan las réplicas sobre quién ha recibido clave
+  (para evitar que un usuario reciba clave de réplica-1 pero no de réplica-2)
+- Relacionar con sección 4.10 del whitepaper (quórum de validación)
+- Añadir al whitepaper como variante del modelo de arranque policéntrico
+
+## ARQUITECTURA DE COEXISTENCIA WEB NORMAL + T10
+
+### Concepto
+- El servidor web normal y la red T10 comparten el mismo alojamiento
+- Misma infraestructura, dos capas con responsabilidades distintas
+- No requiere servidor separado ni infraestructura adicional
+
+### Separación de responsabilidades
+```
+uma.es/              ← web normal, HTML para humanos (sin cambios)
+uma.es/trusteando/   ← red T10, carpetas verificables + gestor de claves
+```
+
+### Configuración Nginx
+```nginx
+# Web normal — sin cambios
+location / {
+    root /var/www/html;
+}
+
+# Red T10 — carpetas estáticas + endpoints de claves
+location /trusteando/ {
+    root /var/www;
+    dav_methods PUT;      # append-only, sin DELETE
+    autoindex off;
+}
+
+# API mínima de claves (Apéndice C del whitepaper)
+location /trusteando/_verify   { proxy_pass http://localhost:8080/verify; }
+location /trusteando/_challenge { proxy_pass http://localhost:8080/challenge; }
+location /trusteando/_grant    { proxy_pass http://localhost:8080/grant; }
+```
+
+### Lo que añade una institución para unirse a T10
+- Carpeta /trusteando/ con estructura de carpetas
+- Script de ~50 líneas que gestiona verify_child_authorship, respond_to_challenge, grant_key
+- PUT habilitado, DELETE deshabilitado (append-only)
+- Todo lo demás — dominio, servidor, SSL — ya existe
+
+### Relación con sección 7.11 del whitepaper
+- Amplía la sección de configuración Nginx ya existente
+- Añadir el concepto de coexistencia explícitamente
+- Añadir los tres endpoints de la API mínima como parte de la configuración
+
+### Pendiente
+- Escribir el script de 50 líneas de referencia (Python o Node)
+- Añadir al whitepaper como extensión de 7.11
+- Crear como ejemplo en el cookbook
+
+## INTEROPERABILIDAD SEMÁNTICA — argumento central del whitepaper
+
+### La idea central (debe estar en la introducción, no en los apéndices)
+- La interoperabilidad semántica ha sido el santo grial del intercambio de datos durante 30 años
+- Cada intento anterior requirió autoridad centralizada, negociación bilateral,
+  o complejidad que impidió la adopción masiva
+- Trusteando lo resuelve con una carpeta en un servidor web que ya existe
+
+### Frase clave para la introducción
+"Semantic interoperability has been the holy grail of data exchange for 30 years.
+Every attempt — EDI, XML schemas, RDF, OWL, API standards — required either
+centralised authority, bilateral negotiation, or complexity that prevented mass
+adoption. Trusteando's insight is that a folder structure, published on a web
+server you already control, under a domain you already own, is sufficient to
+achieve interoperability by construction. No negotiation. No integration project.
+No shared database. Just a folder."
+
+### Tabla comparativa para el whitepaper
+- OWL/RDF → demasiado complejo para adopción masiva
+- APIs bilaterales → escala O(n²), cada par negocia
+- XML schemas → requiere acuerdo previo entre partes
+- Linked Data → separado de la infraestructura existente
+- Trusteando → carpetas, cualquiera lo entiende, escala O(n)
+
+### La interfaz desaparece — las carpetas SON la interfaz
+- Hoy: app del banco → menús → formularios → sistema propietario
+- Con Trusteando: click en bank/santander/user-juan/transfer/
+- El wallet lee el schema, sabe qué campos pedir
+- El banco verifica con verify_child_authorship
+- Mismo click funciona en cualquier banco que implemente el schema
+
+### Generalización a cualquier servicio
+- hospital/cita-previa/          → pedir cita médica
+- ayuntamiento/padron/           → tramitar empadronamiento
+- universidad/matricula/         → matricularse
+- seguridad-social/prestacion/   → solicitar prestación
+- bank/santander/transfer/       → transferencia bancaria
+
+### Conexión con Open Banking / PSD2
+- PSD2 en Europa lleva años intentando esto con APIs bilaterales y regulación
+- Trusteando lo resuelve por construcción — el schema es el contrato
+- Sin acuerdos bilaterales, sin integración personalizada
+
+### Cambio de prioridades en el whitepaper
+- Reescribir la introducción poniendo interoperabilidad semántica como problema central
+- El argumento técnico (criptografía, TrusteandoNode) viene DESPUÉS
+- Primero el lector entiende por qué importa, luego cómo funciona
+- Hacer esto directamente en el .md inglés (no en el .docx español)
+
+### DECISIÓN DE PROCESO
+- A partir de ahora todos los cambios van al .md inglés directamente
+- El .docx español se congela en v0.2 — artefacto histórico
+- Cuando el inglés esté maduro se genera .docx y .pdf en inglés
+- La traducción al español se hace una sola vez al final

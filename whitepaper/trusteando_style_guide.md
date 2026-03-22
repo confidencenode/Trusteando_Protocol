@@ -487,7 +487,132 @@ The registry grows by community contribution, not central authority. If you use 
 
 ---
 
-## 12. Considerations for Style Guide v0.2
+## 12. The extern/ Pattern — Single Source of Truth
+
+Use `extern/` to reference data that lives in another node. This avoids duplication and inconsistency — each fact has one canonical source.
+
+```
+# Avoid — duplicates data from the client node
+transfer/
+├── [from-name "Juan Ruiz"]/       ← duplicated, can become inconsistent
+└── [from-iban "ES91 2100..."]/    ← duplicated
+
+# Prefer — reference the canonical source
+transfer/
+├── [from extern/bank/santander/accounts/[client-id:C-123456]]/
+├── [to extern/bank/bbva/accounts/[client-id:B-789012]]/
+├── [amount 100]/
+└── [currency EUR]/
+```
+
+`extern/` is to Trusteando what `<a href>` is to HTML. The referenced node owns and controls its data. The referencing node only holds a pointer.
+
+### When to use extern/ vs inline data
+
+Use `extern/` when the referenced data has its own identity in the graph and could change independently. Use inline data (`[field value]`) when the value is local to this node and has no independent existence.
+
+---
+
+## 13. Objects vs Properties — Control vs Data
+
+The most important distinction in path design: an **object** placed in a folder controls its subtree; a **property** is just data belonging to the parent.
+
+```
+# Object — has its own key, controls its content
+professors/juan-ruiz/
+└── since/2021/        ← juan-ruiz controls this
+
+# Property — data of the parent, no control
+transfer/
+└── [from:C-123456]/   ← data of the transfer, not a node
+```
+
+**Rule:** If an entity needs to respond to challenges, create child nodes, or be independently verifiable — make it an object (subfolder). If it is just a value describing the parent — make it a property (`[field:value]` or `[field "value"]`).
+
+The same identifier can be an object in one context and a property in another:
+
+```
+professors/juan-ruiz/              ← juan-ruiz IS an object (has identity)
+transfer/[from:juan-ruiz]/         ← juan-ruiz IS a property (participant role)
+```
+
+---
+
+## 14. Scope and Legal Terms
+
+Use these properties to declare the intended scope of a credential or node:
+
+```
+uma.es/trusteando/students/b9/
+├── [only-valid-for events-discounts festivals]/
+├── [liability uma.es]/
+├── [legal-terms uma.es/trusteando/legal/student-b9-terms]/
+├── [max-value-per-use EUR:50]/
+└── [state brokenado]/
+```
+
+### [only-valid-for] vs [example-not-valid-for]
+
+These two are **mutually exclusive** — never use both on the same node:
+
+- `[only-valid-for X Y Z]` — closed scope: everything not listed is excluded by definition
+- `[example-not-valid-for X Y Z]` — open scope with illustrative exclusions (list is not exhaustive)
+
+```
+# Closed scope — only listed uses are valid
+[only-valid-for events-discounts festivals concerts]/
+
+# Open scope with examples of exclusion
+[example-not-valid-for contracts payments legal-proceedings]/
+```
+
+---
+
+## 15. Event Handlers and Effects — the on/ Namespace
+
+The graph is pure and immutable. Side effects (notifications, webhooks) live in a separate `on/` namespace — the explicit boundary between the pure graph and the world of effects:
+
+```
+group/trusteando/
+├── posts/                      ← pure graph
+└── on/                         ← effects boundary
+    ├── on-new-post/
+    │   └── [notify members/]/
+    └── on-new-member/
+        └── [webhook "https://api.example.com/hook"]/
+```
+
+### Standard event names
+
+| Event | Trigger |
+|---|---|
+| `on-new-child/` | A child node is added |
+| `on-new-state/` | A new state fact is published |
+| `on-key-revoked/` | A key is revoked |
+| `on-quorum-reached/` | Quorum approves something |
+| `on-since/` | Activation date arrives |
+| `on-until/` | Expiration date arrives |
+
+Note: use `on-new-state/` not `on-state-change/` — the graph is append-only, there is no mutation, only new facts.
+
+### when — guards limited by design
+
+Conditions in effect handlers use `when`, not `if`. `when` predicates are intentionally limited — inspired by Erlang guards:
+
+```
+on-new-state/
+└── [when state=brokenado]/
+    └── [action revoke-access courses/]/
+```
+
+**Allowed in when:** `state=X`, `level<N`, `since>=date`, `extern/node/exists`, `quorum-reached`
+
+**Not allowed:** function calls, arithmetic expressions, external fetches, side effects
+
+---
+
+
+## 16. Considerations for Style Guide v0.2
 
 These UML concepts merit further study for a future version of this guide:
 

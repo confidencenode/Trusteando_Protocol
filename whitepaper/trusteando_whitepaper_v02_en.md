@@ -35,9 +35,13 @@ From this simplicity the entire protocol emerges: identity, authentication, auth
 
 
 
----º
+---
 
 # 1. Introduction
+
+Semantic interoperability — the ability for independent systems to exchange data and understand its meaning without prior negotiation — has been the holy grail of information technology for thirty years. Every attempt has fallen short: EDI required bilateral agreements, XML schemas demanded centralised governance, RDF and OWL proved too complex for mass adoption, and API standards scale as O(n²) — every new participant must negotiate with every existing one. The result is a world of silos: hospital systems that cannot talk to each other, banks that require proprietary apps, public administrations that cannot share citizen data across borders, and identity systems controlled by a handful of private platforms.
+
+Trusteando's central insight is that a folder structure, published on a web server you already control, under a domain you already own, is sufficient to achieve interoperability by construction. No negotiation. No integration project. No shared database. No bilateral agreement. Just a folder. Any organisation that publishes its structure in the same schema becomes automatically interoperable with any other that does the same — the schema is the contract.
 
 Existing digital identity systems share a structural flaw: they require identity to be granted by a central authority before it can exist. X.509 certificates depend on commercial Certification Authorities. Federated identity systems such as OAuth delegate identity to private providers—Google, Apple, Microsoft—which can revoke it unilaterally. Existing Knowledge Graphs like Wikidata or the Google Knowledge Graph are centralized or demand consensus from a central editor to write.
 
@@ -119,9 +123,9 @@ This distinction stands in direct contrast with the rest of the folders, where t
 → la entidad declara que NO controla el destino
 
 /protocolos/trusteando
-→ la entidad declara implícitamente que SÍ controla esto
+→ the entity implicitly declares that it DOES control this
 
-Otros ejemplos válidos:
+Other valid examples:
 /members/confidencenode0/externals/orcid
 /members/confidencenode0/externals/linkedin
 universidad.es/externals/ministerio-educacion
@@ -197,7 +201,7 @@ acuerdo-xyz/                         ← object
 ├── participantes/                   ← object.collection
 │   ├── [empresaA proveedor]/         ← object.property (inmutable)
 │   └── [empresaB cliente]/           ← object.property (inmutable)
-├── plan/                            ← object.method (intención)
+├── plan/                            ← object.method (intention)
 │   ├── [objetivo "servicios 2026"]/
 │   └── [state approved]/
 ├── execution/                       ← object.method (realidad)
@@ -227,6 +231,137 @@ The protocol is not an agnostic pipe. To ensure universal interoperability, it d
 While the protocol strictly enforces a binary distinction between technically valid (**Verifiado**) and invalid (**Brokenado**) nodes, the transition to a **Trusteado** state is often an optional, context-dependent layer. 
 
 In many cases, the **Trusteado** state serves as a reputation signal—representing social value, "karma," or a history of good standing. This flexibility allows the protocol to scale from simple identity checks to complex decentralized ecosystems where trust is earned, not just cryptographically proven. The infrastructure provides the status; the community provides the meaning.
+
+---
+
+# 2.14 Trusteando as a DSL
+
+Trusteando is a Domain-Specific Language for declaring verifiable organisational structures, access control hierarchies, and workflow definitions over distributed web infrastructure. It is not a general-purpose programming language — it has no standard library, no arithmetic functions, no string manipulation. What it has is deep expressiveness within its domain, analogous to SQL for data queries, HTML for document structure, or Terraform for infrastructure declaration. Like UML, it describes structures and relationships. Unlike UML, it is executable — a server can read the graph and make cryptographically verifiable decisions based on it.
+
+## 2.14.1 The Five Syntactic Patterns
+
+Every element in a Trusteando path belongs to one of five syntactic categories, each with unambiguous meaning:
+
+```
+subfolder-name/              OBJECT     — has its own key, controls its subtree
+[field:value]/               IDENTIFIER — unique key, indexable, primary key
+[field "value"]/             ATTRIBUTE  — descriptive string, not unique
+[field value]/               PROPERTY   — numeric or enumerated value
+extern/path/to/node/         REFERENCE  — link to data living elsewhere
+fields { ... }               SCHEMA     — structured local data declaration
+```
+
+The colon distinguishes identifiers from attributes: `[client-id:C-123456]` is unique and indexable; `[name "Juan Ruiz"]` is descriptive. This convention is consistent throughout the protocol — `[instance:2]`, `[quorum:3]`, `[dni:12312312A]` all use the colon for values that identify or quantify precisely.
+
+## 2.14.2 Objects vs Properties — Control vs Data
+
+The most important distinction in the grammar is between objects and properties. An object placed in a folder has controlling power over its content — it has its own key derived by `grant_key`, can publish its own children, can respond to challenges, and propagates trust level. A property is simply data belonging to the parent node — no key, no control, no trust propagation.
+
+```
+professors/juan-ruiz/          ← OBJECT: juan-ruiz has identity, controls subtree
+    └── since/2021/            ← juan-ruiz published this, he controls it
+
+transfer/
+    └── [from:C-123456]/       ← PROPERTY: data of the transfer, no control
+    └── [amount 100]/          ← PROPERTY: data of the transfer, no control
+```
+
+The same identifier can be an object in one context and a property in another. The container defines the semantics, not the identifier itself.
+
+## 2.14.3 The Type System
+
+The grammar includes a formal type system for field values, expressed in BNF notation:
+
+```bnf
+<type>        ::= <primitive> | <verified> | <composite>
+<primitive>   ::= "string" | "decimal" | "integer" | "boolean" | "date"
+<verified>    ::= <primitive> "-length:" <integer>
+               |  <primitive> "-pattern:" <regex>
+               |  <domain-type>
+<domain-type> ::= "iban" | "dni-es" | "nie-es" | "nif-es"
+               |  "phone-e164" | "email" | "url" | "isbn"
+<composite>   ::= "select-one-from" "{" <options> "}"
+               |  "select-subset-from" "{" <options> "}"
+               |  <type> "|" <type>
+```
+
+Domain types carry built-in validation — `iban` validates the ISO 13616 checksum, `dni-es` validates the Spanish modulo-23 check digit. A wallet that reads a `fields {}` declaration knows how to validate inputs before signing them.
+
+## 2.14.4 The extern/ Pattern — Single Source of Truth
+
+The `extern/` prefix references data that lives in another node, following the DRY principle — each fact has one canonical source:
+
+```
+transfer/
+├── [from extern/bank/santander/accounts/[client-id:C-123456]]/
+├── [to extern/bank/bbva/accounts/[client-id:B-789012]]/
+├── [amount 100]/
+└── [currency EUR]/
+```
+
+The transfer does not copy the client's name or IBAN — it references the authoritative source. If the client updates their IBAN, every transfer that references them reflects the change automatically. `extern/` is to Trusteando what `<a href>` is to HTML — a typed link to another node in the graph.
+
+## 2.14.5 The Trust Type System — Monadic Propagation
+
+The three conformity states — `b9` (brokenado), `v9` (verifiado), `t9` (trusteado) — form a type system with monadic properties. A function applied to a `b9` node can only return a `b9` result — the trust level cannot be elevated without additional verification. The result of any composition is the minimum trust level of all participating nodes:
+
+```
+t9(student) → passes through b9 function → b9(result)
+v9(student) → passes through t9 function → v9(result)
+```
+
+This is not a policy rule — it is a structural property of the type system, analogous to the `Maybe` monad in Haskell. You cannot escape `b9` without genuine verification, just as you cannot escape `Nothing` without handling it explicitly.
+
+## 2.14.6 Effects — The IO Boundary
+
+The graph is pure and immutable — an append-only record of facts. Side effects (notifications, webhooks, push messages) are separated into an explicit `on/` namespace, analogous to the IO monad in Haskell or event handlers in HTML:
+
+```
+group/trusteando/
+├── posts/                     ← pure graph — immutable facts
+└── on/                        ← effects boundary (like onclick, onload in HTML)
+    ├── on-new-post/
+    │   └── [notify members/]/
+    └── on-new-member/
+        └── [webhook "https://api.example.com/hook"]/
+```
+
+Conditions within effect handlers use `when` rather than `if` — a deliberate choice inspired by Erlang guards. `when` predicates are intentionally limited to a closed set of simple comparisons: equality, numeric comparison, temporal comparison, existence checks, and quorum state. No arbitrary function calls, no external fetches, no side effects within conditions. This guarantees termination, auditability, and security.
+
+```
+on-new-state/
+└── [when state=brokenado]/
+    └── [action revoke-access courses/]/
+```
+
+Allowed in `when`: `state=X`, `level<N`, `since>=date`, `extern/node/exists`, `quorum-reached`.
+Not allowed: function calls, arithmetic expressions, external fetches.
+
+## 2.14.7 The Parallel with Other DSLs and Modelling Languages
+
+Trusteando shares concepts with both programming languages and modelling languages. The table below maps Trusteando concepts to their closest equivalents — not to claim equivalence, but to make the DSL immediately accessible to developers and architects familiar with these tools:
+
+| Programming concept | Trusteando equivalent |
+|---|---|
+| Class | Root folder node |
+| Instance | Named subfolder |
+| Attribute | `[field "value"]` |
+| Primary key | `[field:value]` |
+| Method | `_verify`, `_grant`, `_challenge` endpoints |
+| Inheritance | `[is-a type]` |
+| Composition | `[composes child]` |
+| Aggregation | `[aggregates child]` / `extern/` |
+| Type | `is-type iban`, `select-one-from {}` |
+| Visibility | `private/` |
+| Namespace | URL domain |
+| Event handler | `on/on-new-post/` |
+| Guard | `[when condition]` — limited by design |
+| Pure function | Graph operations (immutable) |
+| IO monad | `on/` namespace (effects) |
+| Monad type | `b9/v9/t9` trust levels |
+
+What Trusteando has that programming languages do not: time as a native dimension (`since/until`), cryptographic verifiability on every node, and distribution — objects live on independent servers across the web.
+
 
 ---
 
@@ -261,7 +396,7 @@ La credencial no es un documento — es la presencia de un nodo en una carpeta d
 ```
 universidad.es/profesores/juan-escobar          ← Juan es Profesor
 universidad.es/doctores/juan-escobar            ← Juan es Doctor
-universidad.es/profesores/since/2021-09-01/juan-escobar   ← incorporación
+universidad.es/profesores/since/2021-09-01/juan-escobar   ← onboarding
 universidad.es/profesores/until/2024-06-30/juan-escobar   ← baja
 
 ```
@@ -330,13 +465,13 @@ El proceso de establecimiento ocurre una sola vez por par:
 
 
 ```
-# La entidad inferior genera su par de claves efímero
+# The lower entity generates its ephemeral key pair
 privada_inferior, publica_inferior = ECDH.generate_keypair(curve=P-256)
 
-# El nivel superior genera su par efímero para este intercambio
+# The upper level generates its ephemeral pair for this exchange
 privada_superior, publica_superior = ECDH.generate_keypair(curve=P-256)
 
-# Intercambian claves públicas (canal autenticado)
+# They exchange public keys (authenticated channel)
 
 # Cada parte deriva la misma clave compartida independientemente
 clave_compartida = ECDH.derive(privada_inferior, publica_superior)
@@ -555,7 +690,7 @@ An entity can generate different secrets for different purposes while maintainin
 
 ```
 secret_identidad  = hash("frase para identidad principal")
-secret_academico  = hash("frase para credenciales académicas")
+secret_academic  = hash("phrase for academic credentials")
 secret_emergencia = hash("frase para migraciones y rescate")
 ```
 
@@ -614,7 +749,7 @@ def __init__(self, key):
 
 @staticmethod
 def reduce_hash(seed, elements):
-    """Operación primitiva: fold hash por la izquierda"""
+    """Primitive operation: left fold hash"""
     result = seed
     for element in elements:
     result = hash(result + element)
@@ -629,7 +764,7 @@ def respond_to_challenge(self, context_elements):
     return self.reduce_hash(self.key, context_elements)
 
 def verify_child_authorship(self, child_path_segment, context_elements, proof):
-    """Solo el padre puede verificar la autoría de un hijo"""
+    """Only the parent can verify a child's authorship"""
     child_key = self.grant_key(child_path_segment)
     return self.reduce_hash(child_key, context_elements) == proof
 
@@ -769,8 +904,8 @@ emergencias.madrid.es/incidents/2026-03-18/incendio-xxx/
 │   │   ├── plan/      ← objective, deadline, assigned teams  (signature: command)
 │   │   └── execution/ ← teams, incidents, end/ when complete  (signature: team)
 ├── firefighters/
-│   ├── deployment/equipos/      ← quién está dónde
-│   └── requests/police/     ← coordinación entre agencias
+│   ├── deployment/equipos/      ← who is where
+│   └── requests/police/     ← inter-agency coordination
 ├── police/
 └── medics/
 ```
@@ -804,14 +939,14 @@ acuerdo-servicios-2026-xyz/
 ├── participantes/                   ← object.collection
 │   ├── [empresaA proveedor]/         ← object.property (inmutable)
 │   └── [empresaB cliente]/           ← object.property (inmutable)
-├── plan/                            ← object.method (intención)
-│   ├── [objetivo "servicios consultoría 2026"]/
+├── plan/                            ← object.method (intention)
+│   ├── [objective "consulting services 2026"]/
 │   ├── [plazo "12 meses"]/
 │   └── [state approved]/
 ├── execution/                       ← object.method (realidad acumulada)
 │   ├── firma/since/2026-03-18/
 │   └── hito-1/[state completed]/since/2026-06-15/
-└── private/             ← condiciones económicas, privadas
+└── private/             ← economic conditions, private
 ```
 
 Each party publishes an identical copy in its own space:
@@ -1028,17 +1163,17 @@ guia.michelin.com/estrellas/              ← mantenido por la comunidad
 ```
 
 
-## 11.5 La migración gradual
+## 11.5 Gradual Migration
 
 Un organismo puede moverse a su ritmo sin interrumpir el servicio:
 
 
 ```
 Fase 1 — sin adaptador
-Parser lee carpetas estáticas si existen, o usa adaptador de comunidad
+Parser reads static folders if they exist, or uses community adapter
 
 Fase 2 — adaptador sobre base de datos existente
-Organismo publica query() sobre su BD actual — sin cambiar nada más
+Organisation publishes query() over its current DB — without changing anything else
 
 Fase 3 — web nativa del protocolo
 Organismo publica carpetas reales — el adaptador ya no es necesario
@@ -1964,6 +2099,76 @@ Examples of application:
 
 ```
 
+## A.25 extern/ — external reference (link to canonical source)
+
+The `extern/` prefix references data that lives in another node. It is the single-source-of-truth pattern — data is not duplicated, it is linked.
+
+```
+transfer/
+├── [from extern/bank/santander/accounts/[client-id:C-123456]]/
+└── [to extern/bank/bbva/accounts/[client-id:B-789012]]/
+```
+
+`extern/` differs from `externals/` (section A.4): `externals/` declares that an entity has a presence on an external platform it does not control. `extern/` is a typed reference to a specific node within the Trusteando graph.
+
+## A.26 on/ — effects namespace
+
+The `on/` folder is the explicit boundary between the pure graph and side effects. Everything inside `on/` may have effects (notifications, webhooks). Everything outside is pure and immutable.
+
+```
+node/trusteando/on/
+├── on-new-child/
+│   └── [notify parent/]/
+├── on-new-state/
+│   └── [when state=brokenado]/
+│       └── [action revoke-access]/
+└── on-until/
+    └── [action notify-expiry]/
+```
+
+Reserved event names: `on-new-child`, `on-new-state`, `on-key-revoked`, `on-quorum-reached`, `on-since`, `on-until`.
+
+## A.27 [only-valid-for] and [example-not-valid-for]
+
+Declare the intended scope of a credential. These two properties are mutually exclusive:
+
+- `[only-valid-for X Y Z]` — closed scope: everything not listed is excluded
+- `[example-not-valid-for X Y Z]` — open scope with illustrative exclusions only
+
+```
+uma.es/trusteando/students/b9/
+├── [only-valid-for events-discounts festivals]/
+└── [state brokenado]/
+```
+
+## A.28 [liability], [legal-terms], [max-value-per-use]
+
+Declare legal responsibility and usage limits for a node or credential:
+
+- `[liability url]` — entity responsible for this node's actions
+- `[legal-terms url]` — link to machine-readable terms
+- `[max-value-per-use EUR:50]` — maximum transaction value
+
+```
+uma.es/trusteando/students/b9/
+├── [liability uma.es]/
+├── [legal-terms uma.es/trusteando/legal/student-b9]/
+└── [max-value-per-use EUR:50]/
+```
+
+## A.29 Trust level aliases
+
+Short aliases for the three conformity states, consistent with the 9/10-letter naming convention:
+
+| Alias | Full name | Meaning |
+|---|---|---|
+| `b9` | brokenado | Unverified, basic trust |
+| `v9` | verifiado | At least one verified data point |
+| `t9` | trusteado | Full verification |
+
+Note: `T10` (uppercase) refers to the protocol name and root path, not a trust level.
+
+
 
 ---
 
@@ -1977,7 +2182,7 @@ The API defines how to interact with a node. It is independent of the implementa
 
 ```
 verify(url, folder)
-→ ¿está este nodo en esta carpeta ahora?
+→ is this node in this folder now?
 → devuelve: { valid: bool, timestamp: ISO8601, issuer: url }
 
 getIdentity(url)
@@ -1997,12 +2202,12 @@ create(url, entity_type, scope)
 → genera claves, publica trusteando_identity/
 
 certify(subject_url, folder)
-→ añadir un nodo a una carpeta del registro
+→ add a node to a registry folder
 → equivale a emitir una credencial
 
 revoke(subject_url, folder)
 → eliminar un nodo de una carpeta del registro
-→ equivale a revocar una credencial específica
+→ equivalent to revoking a specific credential
 
 ```
 
@@ -2012,11 +2217,11 @@ revoke(subject_url, folder)
 
 ```
 migrate(new_superior_url, emergency_key_1)
-→ solicitar migración a un nuevo superior
+→ request migration to a new parent
 → el nodo revela emergency_key_1 al nuevo superior
 
 adoptNode(subject_url, emergency_key_1)
-→ el superior acepta la migración
+→ the parent accepts the migration
 → verifica emergency_key_1 contra hash_migracion publicado
 → publica old_identities/ con cadena completa
 → aprueba ante el root
@@ -2031,7 +2236,7 @@ adoptNode(subject_url, emergency_key_1)
 requestReveal(subject_url, field, context)
 → el receptor solicita acceso a un campo protegido
 → field: ruta de la carpeta private/
-→ context: propósito declarado de la solicitud
+→ context: declared purpose of the request
 → devuelve: { request_id, status: pending }
 
 grantReveal(request_id, disclosure_level)
@@ -2154,14 +2359,14 @@ Everything under calculated/ is automatically derived from the primary data and 
 
 ```
 updateIndex(entity_url, collection)
-→ recalcula los índices de una colección
+→ recalculates the indices of a collection
 → se llama tras cada create/update/delete de un objeto
 → idempotente — ejecutarlo dos veces da el mismo resultado
 
 checkIndex(entity_url, collection)
-→ verifica que los índices coinciden con los datos primarios
+→ verifies that indices match primary data
 → devuelve: { valid: bool, mismatches: [...] }
-→ cualquier tercero puede ejecutarlo — auditoría pública autónoma
+→ any third party can run it — autonomous public audit
 
 ```
 
@@ -2327,7 +2532,7 @@ trusteando/redirect/
 target          ← destination URL (new identity)
 permanent       ← bool — definitive or temporary migration
 since           ← migration date
-migration_ref   ← referencia al proceso de migración en old_identities/
+migration_ref   ← reference to the migration process in old_identities/
 
 
 ```
@@ -2346,7 +2551,7 @@ The author's identity uses the autonomous mode defined in section 4.10. The cano
 
 ```
 h1 = hash("ConfidenceNode0/[author-of Trusteando Protocol]")
-h2 = hash(h1 + secret_v02)         ← hash público de esta versión
+h2 = hash(h1 + secret_v02)         ← public hash of this version
 h3 = hash(h1 + secret_disputes)    ← clave de disputas, independiente
 ```
 
@@ -2456,7 +2661,7 @@ spain-root-national-agent/
 In this example, the Spanish national agent delegates sectoral domains to ministries and territorial domains to autonomous communities, each with its own node and role. The hierarchy is whatever the state decides—the protocol only provides the grammar. An external verifier querying spain-root-national-agent can automatically discover all subordinate agents without any central directory.
 
 
-F.5 Ejemplo ilustrativo: suscripción de España al protocolo mediante publicación en el BOE (no normativo)
+F.5 Illustrative example: Spain's subscription to the protocol via BOE publication (non-normative)
 
 The Boletín Oficial del Estado is Spain’s official legal publicity mechanism. Any act published in the BOE has legal validity in the Spanish legal system. Its use as the anchoring point for protocol subscription solves the institutional bootstrap problem in one step: the publication in the BOE is the official declaration of adherence and the public proof of the national agent’s key, verifiable by any citizen, company, or administration.
 
