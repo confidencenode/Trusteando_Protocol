@@ -17,16 +17,16 @@ Trusteando is an open protocol for a decentralised, cryptographically verifiable
 ```
 class TrusteandoNode:
 def __init__(self, key): self.key = key
-@staticmethod
+    @staticmethod
 def reduce_hash(seed, elements):
-for e in elements: seed = hash(seed + e)
-return seed
+    for e in elements: seed = hash(seed + e)
+    return seed
 def grant_key(self, child):
-return hash(self.key + child)
+    return hash(self.key + child)
 def respond_to_challenge(self, ctx):
-return self.reduce_hash(self.key, ctx)
+    return self.reduce_hash(self.key, ctx)
 def verify_child_authorship(self, child, ctx, proof):
-return self.reduce_hash(self.grant_key(child), ctx) == proof
+    return self.reduce_hash(self.grant_key(child), ctx) == proof
 
 ```
 
@@ -35,29 +35,24 @@ From this simplicity the entire protocol emerges: identity, authentication, auth
 
 
 
----
+---º
 
 # 1. Introduction
 
-<!-- TODO: translate -->
-Los sistemas de identidad digital existentes comparten un defecto estructural: requieren que la identidad sea concedida por una autoridad central antes de poder existir. Los certificados X.509 dependen de Autoridades de Certificación comerciales. Los sistemas de identidad federada como OAuth delegan la identidad a proveedores privados — Google, Apple, Microsoft — que pueden revocarla unilateralmente. Los Knowledge Graphs existentes como Wikidata o Google Knowledge Graph son centralizados o requieren consenso de un editor central para escribir.
+Existing digital identity systems share a structural flaw: they require identity to be granted by a central authority before it can exist. X.509 certificates depend on commercial Certification Authorities. Federated identity systems such as OAuth delegate identity to private providers—Google, Apple, Microsoft—which can revoke it unilaterally. Existing Knowledge Graphs like Wikidata or the Google Knowledge Graph are centralized or demand consensus from a central editor to write.
 
-<!-- TODO: translate -->
-Trusteando parte de una observación diferente: la identidad de una entidad real no necesita ser concedida — ya existe. Una universidad existe. Tiene una URL. Tiene personal. Tiene autoridad real sobre ese personal. Las relaciones entre entidades — quién pertenece a qué, desde cuándo, con qué rol — también existen. Lo que falta no es un mecanismo para crear esa identidad sino un protocolo para expresarla como un grafo de conocimiento verificable, descentralizado, y con memoria temporal.
+Trusteando begins from a different observation: the identity of a real entity does not need to be granted—it already exists. A university exists. It has a URL. It has staff. It has real authority over that staff. The relationships between entities—who belongs to what, since when, with what role—also exist. What is missing is not a mechanism to create that identity but a protocol to express it as a verifiable, decentralized knowledge graph with temporal memory.
 
-<!-- TODO: translate -->
-Trusteando es ese protocolo. Los nodos del grafo son entidades identificadas por el hash de su URL pública. Las aristas son relaciones expresadas como estructuras de carpetas publicadas por cada entidad en su propio espacio web. La firma criptográfica de cada entidad sobre su propio espacio garantiza la integridad. La cadena de confianza entre niveles permite la verificación sin depender de ningún servidor central en el uso cotidiano.
+Trusteando is that protocol. The graph's nodes are entities identified by the hash of their public URL. The edges are relationships expressed as folder structures published by each entity in its own web space. Each entity's cryptographic signature over its own space guarantees integrity. The trust chain between levels enables verification without relying on any central server in everyday usage.
 
 
 ## 1.1 A Parallel Network on the Same Web
 
-<!-- TODO: translate -->
-Trusteando no compite con la web — se superpone a ella. Cada entidad que publica una carpeta trusteando/ en su dominio añade un nodo a una red paralela que corre sobre la misma infraestructura HTTP, los mismos servidores, las mismas URLs. La diferencia es lo que esa carpeta contiene: no HTML para consumo humano sino estructuras de carpetas que expresan hechos verificables criptográficamente.
+Trusteando does not compete with the web—it overlays it. Every entity that publishes a trusteando/ folder on its domain adds a node to a parallel network that runs on the same HTTP infrastructure, the same servers, the same URLs. The difference lies in what that folder contains: not HTML for human consumption but folder structures that express cryptographically verifiable facts.
 
-<!-- TODO: translate -->
-La web dice: existe este documento. Trusteando dice: existe esta relación, y está verificada por quien tiene autoridad sobre ella. Esa distinción permite representar con precisión cualquier estructura organizativa — universidades con sus facultades, empresas con sus departamentos, estados con sus administraciones — y controlar de forma granular quién puede certificar qué sobre quién. La jerarquía de carpetas refleja la jerarquía real, y la criptografía garantiza que solo quien tiene autoridad puede emitir credenciales en su ámbito.
+The web says: this document exists. Trusteando says: this relation exists, and it is verified by the authority over it. That distinction lets you accurately represent any organizational structure—universities with their faculties, companies with their departments, states with their administrations—and control at a granular level who can certify what about whom. The folder hierarchy mirrors the real hierarchy, and cryptography guarantees that only those with authority can issue credentials within their domain.
 
-Ambas capas usan la misma infraestructura. Solo cambian las reglas.
+Both layers use the same infrastructure. Only the rules change.
 
 
 ---
@@ -67,8 +62,7 @@ Ambas capas usan la misma infraestructura. Solo cambian las reglas.
 
 ## 2.1 The URL as Identity Anchor
 
-<!-- TODO: translate -->
-El identificador de cualquier entidad en el sistema es el hash criptográfico de su URL canónica:
+An entity's identifier in the system is the cryptographic hash of its canonical URL:
 
 
 ```
@@ -76,37 +70,30 @@ entity_id = SHA-256(canonical_url)
 
 ```
 
-<!-- TODO: translate -->
-La entidad no necesita registrarse en ningún sistema previo. Su URL ya existe y es pública. Trusteando la reconoce como ancla de identidad sin añadir fricción. Dos entidades distintas tienen distintas URLs y por tanto distintos identificadores — no hay colisión posible bajo SHA-256 en la práctica.
+The entity does not need to register with any prior system. Its URL already exists and is public. Trusteando recognizes it as an identity anchor without adding friction. Two different entities have different URLs and therefore different identifiers—SHA-256 collisions are practically impossible.
 
-<!-- TODO: translate -->
-La URL canónica se define como la URL de la página principal de la entidad con esquema https, sin barra final, en minúsculas. Por ejemplo: https://universidad.es
+The canonical URL is defined as the entity's homepage with https scheme, no trailing slash, and lowercase letters. For example: https://universidad.es
 
 
 ## 2.2 Membership Precedes Recognition
 
-<!-- TODO: translate -->
-Si una universidad publica en su propia web — por ejemplo en https://universidad.es/trusteando — el hash de un profesor junto con su clave pública, ese profesor ya pertenece al espacio de identidad de esa universidad. La cadena de confianza existe antes de que el nodo raíz la valide formalmente.
+If a university publishes on its own website—for example at https://universidad.es/trusteando—the hash of a professor together with their public key, that professor already belongs to that university's identity space. The trust chain exists before the root node formally validates it.
 
-<!-- TODO: translate -->
-El nodo raíz no crea la relación entre la universidad y su profesor — la eleva a confianza criptográficamente verificable por terceros que no conocen a ninguna de las partes. Para el verificador que ya conoce y confía en la universidad, la publicación en su URL es suficiente.
+The root node does not create the relationship between the university and its professor—it elevates it to cryptographically verifiable trust for third parties that do not know either party. For a verifier who already knows and trusts the university, the publication at its URL is enough.
 
 
 ## 2.3 Contextual Trust Suffices for Everyday Use
 
-<!-- TODO: translate -->
-Ver el hash de Juan Escobar publicado en universidad.es/profesores ya transmite confianza a cualquier verificador que conozca esa universidad. No hace falta que el nodo raíz lo certifique. La universidad tiene autoridad real — su URL es su identidad, su reputación institucional es su aval.
+Seeing Juan Escobar's hash published at universidad.es/profesores already conveys trust to any verifier who knows that university. The root node does not need to certify it. The university has real authority—its URL is its identity, and its institutional reputation is its endorsement.
 
-<!-- TODO: translate -->
-La verificación criptográfica completa resuelve los casos donde la confianza contextual no alcanza: cuando el verificador no conoce la entidad, cuando la verificación debe ser automática, o cuando hay disputa sobre la autenticidad de una credencial.
+Full cryptographic verification resolves the cases where contextual trust falls short: when the verifier does not know the entity, when verification must be automatic, or when there is a dispute about the authenticity of a credential.
 
 
 ## 2.5 Authority is Demonstrated by Controlling the URL
 
 La autoridad de una entidad para emitir credenciales no se declara — se demuestra controlando la URL bajo la que publica. Nadie puede publicar bajo universidad.es/profesores/ sin controlar universidad.es. El DNS y el servidor web son la prueba de control, exactamente igual que en HTTPS.
 
-<!-- TODO: translate -->
-Esto resuelve la pregunta de cómo sabe un verificador que una entidad tiene autoridad para emitir una credencial: porque la credencial está publicada bajo una URL que esa entidad controla. No hace falta ninguna declaración adicional. El control es la autoridad.
+This answers the question of how a verifier knows that an entity has authority to issue a credential: because the credential is published under a URL that the entity controls. No additional declaration is required. Control is authority.
 
 
 ```
@@ -122,11 +109,9 @@ universidad.es                                   ← la universidad controla est
 
 ```
 
-<!-- TODO: translate -->
-La carpeta externals permite a una entidad vincular desde su espacio propio cualquier presencia en sistemas externos que no controla — GitHub, ORCID, LinkedIn, rankings, registros oficiales. El vínculo lo firma la propia entidad, así que la autoridad sobre el vínculo es suya. Pero externals es semántica del protocolo, no una convención de nomenclatura: declara explícitamente que la entidad no tiene autoridad sobre lo que hay en el destino. Un verificador que lee externals/github sabe que la entidad vincula algo que no controla y que por tanto no puede garantizar su contenido — solo garantiza que el vínculo es auténtico.
+The externals folder allows an entity to link from its own space to any presence on external systems it does not control—GitHub, ORCID, LinkedIn, rankings, official registries. The entity signs the link itself, so the authority over the link is its own. But externals is protocol semantics, not just a naming convention: it explicitly declares that the entity has no authority over what lies at the destination. A verifier who reads externals/github knows the entity is linking to something it does not control and therefore cannot guarantee its content—only that the link is authentic.
 
-<!-- TODO: translate -->
-Esta distinción contrasta directamente con el resto de carpetas, donde la ausencia de externals implica control:
+This distinction stands in direct contrast with the rest of the folders, where the absence of externals implies control:
 
 
 ```
@@ -144,82 +129,66 @@ universidad.es/externals/rankings/qs-world
 
 ```
 
-<!-- TODO: translate -->
-En Trusteando la estructura de la URL declara la autoridad. La carpeta externals es la única excepción explícita — y su existencia hace que la regla general sea aún más clara.
+In Trusteando the URL structure declares the authority. The externals folder is the only explicit exception—and its existence makes the general rule even clearer.
 
-<!-- TODO: translate -->
-Este mecanismo ilustra un caso real: confidencenode.org/members/confidencenode0/externals/github apunta a github.com/ConfidenceNode0, donde vive el código del protocolo. El dominio propio es la identidad canónica; GitHub es el hosting actual del código. Cuando el hosting propio esté levantado, el código migrará — pero la identidad canónica no cambia.
+This mechanism illustrates a real case: confidencenode.org/members/confidencenode0/externals/github points to github.com/ConfidenceNode0, where the protocol's code lives. The own domain is the canonical identity; GitHub is the current hosting for the code. When the self-host is up, the code will migrate—but the canonical identity does not change.
 
 
 ## 2.6 The Golden Rule — The Folder Structure is the Credential
 
-<!-- TODO: translate -->
-Toda la información que una entidad está obligada a ofrecer sobre credenciales está almacenada en su estructura de carpetas públicas. No hay base de datos oculta, no hay campos en documentos separados, no hay APIs con estado interno que un verificador necesite consultar.
+All the information that an entity must provide about credentials is stored in its public folder structure. There are no hidden databases, no fields in separate documents, no stateful APIs that a verifier has to query.
 
-<!-- TODO: translate -->
-Un verificador puede comprobar cualquier credencial siguiendo únicamente URLs públicas. Si la información no está en la estructura de carpetas, no existe como credencial del protocolo. Esta regla no es una convención — es una condición de validez.
+A verifier can check any credential by following only public URLs. If the information is not in the folder structure, it does not exist as a credential in the protocol. This rule is not a convention—it is a condition of validity.
 
-<!-- TODO: translate -->
-Las consecuencias prácticas son profundas: verificabilidad total sin cooperación de la entidad emisora, auditabilidad completa del espacio de identidad de cualquier entidad, y resiliencia ante caídas — una copia estática de las carpetas es suficiente para reconstruir toda la información.
+The practical consequences are profound: total verifiability without the issuer's cooperation, complete auditability of any entity's identity space, and resilience to outages—a static copy of the folders is enough to reconstruct all the information.
+
+A detailed style guide in `trusteando_style_guide.md` documents the UML-inspired naming and relation conventions that keep this grammar consistent across implementations.
 
 
 ## 2.7 Trusteando as a Decentralised Knowledge Graph
 
-El conjunto de entidades y relaciones que el protocolo expresa forma un Knowledge Graph con tres propiedades que los sistemas existentes no combinan:
+The set of entities and relationships the protocol expresses forms a Knowledge Graph with three properties that existing systems do not combine:
 
-- Descentralizado — cada nodo escribe en su propio espacio. Nadie necesita permiso de un editor central para publicar relaciones.
-- <!-- TODO: translate --> Verificable criptográficamente — cada arista está firmada por quien la emite. No hay que confiar en ningún editor central — la firma lo prueba.
-- <!-- TODO: translate --> Dinámico con historial completo — las carpetas since/until dan dimensión temporal al grafo. No es una foto estática sino un grafo que evoluciona con historia íntegra y verificable.
-<!-- TODO: translate -->
-Las credenciales son aristas del grafo. Las entidades son nodos. La cadena de confianza es la topología. El protocolo de identidad es un caso particular de este grafo más general.
+- Decentralized — each node writes in its own space. No one needs permission from a central editor to publish relationships.
+- Cryptographically verifiable — each edge is signed by whoever emits it. There is no need to trust any central editor—the signature proves it.
+- Dynamic with a complete history — the since/and until/ folders give the graph a temporal dimension. It is not a static snapshot but a graph that evolves with an integral and verifiable history.
+Credentials are the edges of the graph. Entities are the nodes. The trust chain is the topology. The identity protocol is a particular case of this more general graph.
 
 
 ## 2.8 The Protocol is Open and Irrevocably Public
 
-<!-- TODO: translate -->
-El formato del protocolo, la capacidad de montar nodos propios, y la verificación manual consultando URLs directamente son libres y permanecen así. Ninguna entidad — incluido el nodo raíz de Trusteando — puede impedir a nadie implementar el protocolo, verificar credenciales, o publicar su propio espacio de identidad.
+The protocol format, the ability to run your own nodes, and manual verification by consulting URLs directly are free and remain so. No entity—including the Trusteando root node—can stop anyone from implementing the protocol, verifying credentials, or publishing their own identity space.
 
-<!-- TODO: translate -->
-Esta apertura no es una concesión — es lo que da valor al sistema. Un protocolo que puede ser revocado por su creador no es infraestructura: es un servicio con condiciones de uso.
+This openness is not a concession—it is what gives the system value. A protocol that can be revoked by its creator is not infrastructure: it is a service with terms of use.
 
 
 ## 2.9 Interoperability by Design
 
-<!-- TODO: translate -->
-Una consecuencia estructural de anclar la identidad en URLs públicas y expresar las relaciones como un esquema de carpetas es que cualquier sistema — base de datos, API REST, microservicio — que exponga sus datos respetando ese esquema se vuelve interoperable por defecto con cualquier otro que haga lo mismo. No hace falta negociar convenios bilaterales ni desarrollar conectores específicos: la estructura de carpetas es el contrato de interoperabilidad. Esto tiene implicaciones especialmente relevantes para administraciones públicas y organismos, donde la interoperabilidad actual exige plataformas intermediarias complejas y acuerdos punto a punto. El caso de uso se desarrolla en la sección 7.8.
+A structural consequence of anchoring identity in public URLs and expressing relationships as a folder schema is that any system—database, REST API, microservice—that exposes its data while respecting that schema becomes interoperable by default with any other doing the same. There is no need to negotiate bilateral agreements or develop specific connectors: the folder structure is the interoperability contract. This has especially relevant implications for public administrations and agencies, where current interoperability demands complex intermediary platforms and point-to-point agreements. The use case is developed in section 7.8.
 
 
 ## 2.10 The Graph as Immutable Historical Record
 
-<!-- TODO: translate -->
-Los hechos publicados en el grafo no pueden modificarse. Esta no es una restricción semántica sino una consecuencia criptográfica directa: cada credencial está cubierta por una firma ECDSA. Modificar cualquier campo de un hecho ya publicado invalida la firma que lo cubre, haciendo la alteración detectable por cualquier verificador. El pasado del grafo es, por construcción, inalterable.
+Facts published in the graph cannot be modified. This is not a semantic restriction but a direct cryptographic consequence: each credential is covered by an ECDSA signature. Modifying any field of an already published fact invalidates the signature covering it, making the alteration detectable by any verifier. The graph's past is, by construction, immutable.
 
-<!-- TODO: translate -->
-Cuando un hecho contiene un error, la corrección no borra el original — añade un nuevo hecho que lo complementa o corrige, firmado por quien tiene autoridad para hacerlo. El grafo mantiene la historia completa: el error original, la corrección, quién la emitió y cuándo. Cualquier verificador puede reconstruir exactamente qué era válido en cualquier momento del pasado.
+When a fact contains an error, the correction does not erase the original—it adds a new fact that supplements or corrects it, signed by whoever has authority to do so. The graph keeps the complete history: the original mistake, the correction, who issued it, and when. Any verifier can reconstruct exactly what was valid at any point in the past.
 
-<!-- TODO: translate -->
-Esta propiedad distingue a Trusteando de los sistemas de registro tradicionales, donde modificar un campo es operativamente posible y a menudo indetectable. En Trusteando, cualquier intento de alterar el pasado es criptográficamente visible. La confianza en el sistema no depende de que nadie quiera manipular los registros — depende de que la manipulación es imposible sin dejar evidencia.
+This property distinguishes Trusteando from traditional registry systems, where modifying a field is operationally possible and often undetectable. In Trusteando, any attempt to alter the past is cryptographically visible. Trust in the system does not rely on no one wanting to tamper with the records—it relies on tampering being impossible without leaving evidence.
 
-<!-- TODO: translate -->
-La convención since/until y el modelo plan/execution de A.24 son la expresión temporal de este principio: since/ y until/ registran cundo algo ocurrió, plan/ declara la intención, y execution/ acumula los hechos reales según van ocurriendo. El plan puede cambiar; los hechos de ejecución ya registrados no.
+The since/until convention and the plan/execution model of A.24 are the temporal expression of this principle: since/ and until/ record when something happened, plan/ declares the intention, and execution/ accumulates the actual facts as they occur. The plan may change; execution facts already recorded do not.
 
-<!-- TODO: translate -->
-Cualquier hecho publicado debe tratarse como inalterable. Modificarlo rompe la firma que lo cubre y destruye la cadena de confianza que depende de él.
+Any published fact must be treated as immutable. Modifying it breaks the signature covering it and destroys the trust chain that depends on it.
 
 
 ## 2.11 Public by Default, Privacy Declared
 
-<!-- TODO: translate -->
-Todo lo que existe en el grafo es público salvo lo que esté bajo private/. La privacidad se declara explícitamente; la publicidad es el estado natural. Esta inversión del modelo tradicional — donde hay que declarar qué se comparte — hace que el grafo sea auditable por defecto y que la privacidad sea una elección consciente, no una consecuencia del silencio.
+Everything that exists in the graph is public except for what lies under private/. Privacy is declared explicitly; publicity is the natural state. This inversion of the traditional model—where you have to declare what you share—makes the graph auditable by default and privacy a conscious choice, not a consequence of silence.
 
-<!-- TODO: translate -->
-La carpeta private/ resuelve tres niveles de privacidad. Primero, contenido privado con relación pública: el nodo es visible pero sus propiedades están ocultas. Segundo, relación privada con existencia de privacidad pública: la carpeta private/ es visible pero no su contenido — un verificador sabe que algo existe ahí sin saber qué. Tercero, privacidad total bajo carpeta opaca: ni siquiera el tipo de relación es visible. En los tres casos, acceder al contenido requiere elevar una consulta al agente que controla la carpeta, que decide si concede acceso mediante grantReveal().
+The private/ folder resolves three levels of privacy. First, private content with a public relationship: the node is visible but its properties remain hidden. Second, a private relation with the existence of public privacy: the private/ folder is visible but not its contents—a verifier knows something exists there without knowing what. Third, total privacy under an opaque folder: not even the type of relationship is visible. In all three cases, accessing the content requires raising a query to the agent controlling the folder, who decides whether to grant access via grantReveal().
 
-<!-- TODO: translate -->
-Aplicado a una universidad: universidad.es/personal/profesores/private/ oculta la identidad de determinados profesores. Un verificador externo ve que existen entradas ocultas bajo esa carpeta, pero no quiénes son ni cuántos. Para acceder debe elevar una consulta al agente profesores/, que decide si concede el acceso. Esto resuelve el problema de la privacidad del grafo de relaciones descrito en la sección 12.7: la existencia de la arista puede ocultarse, no solo su contenido.
+Applied to a university: universidad.es/personal/profesores/private/ hides the identities of certain professors. An external verifier sees that hidden entries exist under that folder, but not who they are or how many. To access it, they must raise a query to the profesores/ agent, who decides whether to grant access. This solves the privacy problem of the relationship graph described in section 12.7: the existence of the edge can be hidden, not just its content.
 
-<!-- TODO: translate -->
-Los nodos también pueden modelarse como objetos con métodos y valores, siguiendo la analogía de la programación orientada a objetos. La carpeta es el objeto, las subcarpetas son métodos o colecciones, y los corchetes son propiedades o valores — inmutables una vez firmados. Un acuerdo entre partes ilustra esta estructura:
+Nodes can also be modeled as objects with methods and values, following the object-oriented programming analogy. The folder is the object, the subfolders are methods or collections, and the brackets are properties or values—immutable once signed. An agreement between parties illustrates this structure:
 
 
 ```
@@ -236,39 +205,46 @@ acuerdo-xyz/                         ← object
 └── private/             ← privado, requiere grantReveal()
 ```
 
-<!-- TODO: translate -->
-La analogía con programación orientada a objetos es ilustrativa pero incompleta: a diferencia de una clase con estado privado, aquí no hay encapsulación por defecto. Todo es público salvo lo que se oculta explícitamente. Es más cercano a un record inmutable en un lenguaje funcional: las propiedades firmadas no se modifican, las correcciones añaden nuevos registros, y el historial completo es siempre accesible.
+The analogy with object-oriented programming is illustrative but incomplete: unlike a class with private state, there is no default encapsulation here. Everything is public except what is explicitly hidden. It is closer to an immutable record in a functional language: signed properties are not modified, corrections add new records, and the complete history is always accessible.
 
 
 ## 2.12 The Folder Hierarchy is the Key Hierarchy
 
-<!-- TODO: translate -->
-El protocolo tiene una propiedad estructural que conecta su organización visible con su fundamento criptográfico: la jerarquía de carpetas y la jerarquía de claves son isomorfas. Cada carpeta es un nodo, y cada nodo tiene una clave derivada directamente de su posición en el árbol. Recorrer el árbol de carpetas es verificar la cadena criptográfica. No hay infraestructura de clave pública separada — la estructura de carpetas es la infraestructura criptográfica.
+The protocol has a structural property that connects its visible organization with its cryptographic foundation: the folder hierarchy and the key hierarchy are isomorphic. Each folder is a node, and each node has a key derived directly from its position in the tree. Traversing the folder tree is verifying the cryptographic chain. There is no separate public key infrastructure—the folder structure is the cryptographic infrastructure.
 
-<!-- TODO: translate -->
-Esta isomorfía tiene una consecuencia práctica importante: cualquier entidad que controle una carpeta controla automáticamente la clave asociada a ella, y puede delegar claves a subcarpetas mediante grant_key. La autoridad sobre una rama del árbol es a la vez autoridad sobre la información publicada en esa rama y autoridad sobre las claves criptográficas que la protegen. No hay posibilidad de que estas dos autoridades divergan. La sección 4.11 formaliza este principio con la clase TrusteandoNode.
+This isomorphism has an important practical consequence: any entity that controls a folder automatically controls the key associated with it, and can delegate keys to subfolders via grant_key. Authority over a branch of the tree is simultaneously authority over the information published in that branch and authority over the cryptographic keys that protect it. There is no possibility for these two authorities to diverge. Section 4.11 formalizes this principle with the TrusteandoNode class.
 
+## 2.13 Node Conformity States (Verifiado, Trusteado, Brokenado)
+
+The protocol is not an agnostic pipe. To ensure universal interoperability, it defines three mandatory semantic states that determine how a verifier must process a node or a branch of the graph:
+
+* **Verifiado (Verified):** The base state of existence. A node is **Verifiado** if its cryptographic signature is valid and its URL is accessible. It represents a technically correct identity but without sufficient history or endorsements (e.g., a new user on a social network or a recently registered merchant). It is the "entry point" to the system.
+* **Trusteado (Trusted):** The state of full operation. A node reaches a **Trusteado** state when, in addition to being *Verifiado*, it has an explicit endorsement from its superior node or has passed the consensus threshold of observers (see section 4.3). In terms of reputation, it is equivalent to a node in "good standing" or with "positive karma."
+* **Brokenado (Broken):** The state of invalidity or alert. A node enters **Brokenado** mode when its cryptographic integrity fails (corrupt signature) or when the superior node publishes an explicit revocation for malfunction. A **Brokenado** node halts the propagation of trust: any credential or sub-node hanging from a branch marked as **Brokenado** is ignored by verifiers by default.
+
+### Optionality and Contextual Interpretation
+
+While the protocol strictly enforces a binary distinction between technically valid (**Verifiado**) and invalid (**Brokenado**) nodes, the transition to a **Trusteado** state is often an optional, context-dependent layer. 
+
+In many cases, the **Trusteado** state serves as a reputation signal—representing social value, "karma," or a history of good standing. This flexibility allows the protocol to scale from simple identity checks to complex decentralized ecosystems where trust is earned, not just cryptographically proven. The infrastructure provides the status; the community provides the meaning.
 
 ---
 
 # 3. Credential Structure
 
-Una credencial Trusteando tiene tres campos:
+A Trusteando credential has three fields:
 
-Campo
+Field
 
-<!-- TODO: translate -->
-Descripción
+Description
 
 public_key
 
-<!-- TODO: translate -->
-Clave pública del firmante. Identifica al emisor de la credencial de forma verificable.
+Issuer's public key. Identifies the credential issuer in a verifiable manner.
 
 hash(mensaje)
 
-<!-- TODO: translate -->
-Hash SHA-256 del contenido que se afirma. El contenido puede mantenerse privado — solo el hash es necesario para la verificación.
+SHA-256 hash of the asserted content. The content can remain private—only the hash is needed for verification.
 
 hash_verificacion
 
@@ -276,8 +252,7 @@ HMAC-SHA-256 del hash(mensaje) usando la clave compartida entre el firmante y su
 
 auth_signature
 
-<!-- TODO: translate -->
-Firma ECDSA del msg_hash con la clave privada del firmante. Solo el poseedor de esa clave privada puede generarla. Cualquier tercero puede verificarla con la clave pública del firmante. El root guarda un compromiso firmado en el alta que vincula esta clave con la identidad real del firmante, permitiendo resolución de disputas con respaldo legal.
+ECDSA signature of msg_hash with the signer’s private key. Only the holder of that private key can generate it. Any third party can verify it with the signer’s public key. The root keeps a signed commitment at registration that links this key with the signer’s real identity, supporting dispute resolution with legal backing.
 
 
 La credencial no es un documento — es la presencia de un nodo en una carpeta del espacio de identidad de su superior. La estructura de carpetas es la credencial. Por ejemplo:
@@ -291,8 +266,7 @@ universidad.es/profesores/until/2024-06-30/juan-escobar   ← baja
 
 ```
 
-<!-- TODO: translate -->
-La dimensión temporal está codificada en la propia estructura de carpetas — bajo control de la universidad, no de Juan. Juan no puede alterar las fechas de incorporación ni de baja. La revocación de una credencial específica es simplemente eliminar al nodo de la carpeta correspondiente, sin afectar a las demás.
+The temporal dimension is encoded in the folder structure itself—under the university's control, not Juan's. Juan cannot change the join or exit dates. Revoking a specific credential is simply removing the node from the corresponding folder without affecting the others.
 
 Adicionalmente, cada credencial puede incluir un bloque de metadatos firmados:
 
@@ -310,8 +284,7 @@ Adicionalmente, cada credencial puede incluir un bloque de metadatos firmados:
 
 ```
 
-<!-- TODO: translate -->
-El mensaje cuyo hash se incluye puede tener cualquier estructura. El protocolo no impone un esquema. Ejemplos de mensajes válidos:
+The message whose hash is included can have any structure. The protocol does not impose a schema. Examples of valid messages:
 
 
 ```
@@ -346,14 +319,12 @@ Trusteando root
 
 ```
 
-<!-- TODO: translate -->
-El número de niveles no está limitado por el protocolo. Cada entidad decide con qué profundidad organiza su espacio de identidad interno.
+The number of levels is not limited by the protocol. Each entity decides how deeply it organizes its internal identity space.
 
 
 ## 4.2 Shared Key Establishment
 
-<!-- TODO: translate -->
-Cada par de niveles adyacentes comparte una clave simétrica establecida mediante intercambio Diffie-Hellman sobre curva elíptica (ECDH). Este es el mismo mecanismo que usa TLS en cada conexión HTTPS — probado, estandarizado, y bien comprendido.
+Each adjacent pair of levels shares a symmetric key established through an elliptic curve Diffie-Hellman exchange (ECDH). This is the same mechanism TLS uses for each HTTPS connection—proven, standardized, and well understood.
 
 El proceso de establecimiento ocurre una sola vez por par:
 
@@ -372,126 +343,107 @@ clave_compartida = ECDH.derive(privada_inferior, publica_superior)
 clave_compartida = ECDH.derive(privada_superior, publica_inferior)
 # → mismo resultado en ambos lados
 
-# La clave compartida se usa para generar y verificar HMAC
-hash_verificacion = HMAC-SHA-256(msg_hash, clave_compartida)
+# The shared key is used to generate and verify the HMAC
+hash_verificacion = HMAC-SHA-256(msg_hash, shared_key)
 
 ```
 
-<!-- TODO: translate -->
-La propiedad fundamental del intercambio Diffie-Hellman es que ninguna de las dos partes conoce la clave privada de la otra, y nadie que observe el intercambio de claves públicas puede derivar la clave compartida. El nivel superior no puede impersonar al inferior porque no tiene su clave privada.
+The fundamental property of the Diffie-Hellman exchange is that neither party knows the other's private key, and no one observing the exchange of public keys can derive the shared key. The superior level cannot impersonate the inferior because it does not have that private key.
 
-El root no conoce la clave compartida entre la universidad y Juan. La universidad no conoce la clave compartida entre el root y otras entidades. Cada par tiene una clave que es exclusivamente suya.
+The root does not know the shared key between the university and Juan. The university does not know the shared key between the root and other entities. Each pair has a key that is exclusively theirs.
 
 
 ## 4.3 Chain Verification
 
-<!-- TODO: translate -->
-Para verificar que una credencial firmada por Juan como Profesor Asociado es válida, el verificador sigue estos pasos:
-
+To verify that a credential signed by Juan as Associate Professor is valid, the verifier follows these steps:
 
 ```
-1. Obtener la credencial de Juan:
+1. Fetch Juan’s credential:
 (public_key_juan, msg_hash, hmac, auth_signature)
 
-2. Consultar universidad.es/trusteando — ¿está public_key_juan registrada?
-→ sí: Juan pertenece al espacio de identidad de la universidad
+2. Check universidad.es/trusteando— is public_key_juan registered?
+→ yes: Juan belongs to the university’s identity space
 
-3. Verificar AUTENTICIDAD — pedir a la universidad que verifique hmac:
-universidad comprueba: HMAC(msg_hash, clave_compartida_juan_uni) == hmac
-→ la credencial viene de alguien reconocido por la universidad
+3. Verify AUTHENTICITY—ask the university to verify the hmac:
+the university checks: HMAC(msg_hash, shared_key_juan_uni) == hmac
+→ the credential comes from someone recognized by the university
 
-4. Verificar AUTORÍA — con la clave pública de Juan:
-ECDSA.verify(msg_hash, auth_signature, public_key_juan) == válido
-→ solo Juan pudo generar esta firma
+4. Verify AUTHORSHIP—using Juan’s public key:
+ECDSA.verify(msg_hash, auth_signature, public_key_juan) == valid
+→ only Juan could have generated this signature
 
-5. ¿Es universidad.es un agente reconocido?
-→ consultar registro público del root
-→ root firmó: SHA-256(universidad.es) → public_key_universidad
-→ válido
+5. Is universidad.es a recognized agent?
+→ consult the root’s public registry
+→ root signed: SHA-256(universidad.es) → public_key_universidad
+→ valid
 
-6. Credencial verificada — autenticidad y autoría confirmadas.
+6. Credential verified—authenticity and authorship confirmed.
 
 ```
 
-<!-- TODO: translate -->
-El verificador no necesita conocer la clave compartida entre Juan y la universidad — solo necesita que la universidad confirme la validez del HMAC. La universidad no revela la clave compartida: solo responde sí o no a la consulta de verificación.
+The verifier does not need to know the shared key between Juan and the university—it only needs the university to confirm the HMAC's validity. The university does not reveal the shared key: it merely answers yes or no to the verification query.
 
-<!-- TODO: translate -->
-Nota sobre escalabilidad. El paso 3 requiere que el nodo superior — la universidad en el ejemplo — tenga un endpoint de verificación disponible para cada consulta. En organizaciones con muchos miembros y alto volumen de verificaciones esto puede convertirse en un cuello de botella. Hay dos mecanismos complementarios para mitigarlo.
+Note on scalability. Step 3 requires that the superior node—the university in the example—have a verification endpoint available for each query. In organizations with many members and high verification volume this can become a bottleneck. There are two complementary mechanisms to mitigate it.
 
-<!-- TODO: translate -->
-El primero es la caché con firma. El nodo superior publica periódicamente un documento firmado que lista los HMACs válidos para un período dado, con su TTL correspondiente. El verificador descarga ese documento una vez y verifica localmente durante toda la vigencia del TTL, sin consultar al superior en cada verificación individual. Este mecanismo ya está contemplado en la convención cache/ del protocolo.
+The first is signed caching. The superior node periodically publishes a signed document that lists the valid HMACs for a given period along with the corresponding TTL. The verifier downloads that document once and verifies locally throughout the TTL's duration without querying the superior for each individual verification. This mechanism is already covered by the cache/ convention of the protocol.
 
-<!-- TODO: translate -->
-El segundo es la verificación por lotes mediante árbol de Merkle. El nodo superior publica periódicamente la raíz de un árbol de Merkle construido sobre todos los HMACs válidos del período. El nodo miembro puede entonces demostrar que su HMAC está incluido en ese árbol presentando únicamente su rama de prueba — un conjunto logarítmico de hashes que el verificador puede comprobar localmente sin necesidad de consulta en línea al superior y sin que el superior revele el conjunto completo de HMACs. Ambos mecanismos son compatibles entre sí y con el flujo de verificación descrito en los pasos anteriores.
+The second is batch verification via a Merkle tree. The superior node periodically publishes the root of a Merkle tree built over all the valid HMACs for the period. The member node can then prove that its HMAC is included in that tree by presenting only its proof branch—a logarithmic set of hashes that the verifier can check locally without needing an online query to the superior and without the superior revealing the complete set of HMACs. Both mechanisms are compatible with each other and with the verification flow described in the previous steps.
 
-<!-- TODO: translate -->
-Un tercer mecanismo, complementario a los anteriores, es el modelo de réplicas observadoras con consenso por suma. N nodos independientes — entidades reputadas con identidad verificable en el propio grafo: universidades, organismos públicos, colegios profesionales — mantienen copias de los espacios de identidad que observan. El verificador consulta K de esas réplicas y obtiene votos binarios: 1 si la credencial es válida según esa réplica, 0 si no. La suma de votos determina el resultado.
+A third mechanism, complementary to the previous ones, is the observer replica model with sum consensus. N independent nodes—reputed entities with verifiable identity within the graph itself: universities, public agencies, professional associations—maintain copies of the identity spaces they observe. The verifier queries K of those replicas and receives binary votes: 1 if the credential is valid according to that replica, 0 if not. The sum of votes determines the result.
 
-<!-- TODO: translate -->
-El emisor publica su estructura de carpetas sin necesitar saber nada del consenso. Las réplicas son observadores pasivos que sincronizan mediante diffs criptográficos — deltas mínimos que describen solo lo que ha cambiado — en lugar de replicar el árbol completo. Esto hace la propagación eficiente incluso con conexiones modestas, y los diffs funcionan como registro de cambios nativo: guardarlos equivale a tener el historial completo de cómo ha evolucionado la confianza de una entidad.
+The issuer publishes its folder structure without needing to know anything about the consensus. Replicas are passive observers that synchronize via cryptographic diffs—minimal deltas that describe only what has changed—instead of replicating the entire tree. This makes propagation efficient even with modest connections, and the diffs act as a native change log: storing them is equivalent to keeping the complete history of how an entity's trust has evolved.
 
-<!-- TODO: translate -->
-La propagación es escalonada: las réplicas más rápidas reciben el diff primero y pueden responder consultas casi de inmediato, mientras las lentas se actualizan en segundo plano. Para evitar ambigüedad durante la ventana de inconsistencia el protocolo define un umbral de histéresis: solo se acepta como válido un resultado que supere el umbral configurado (por ejemplo, 80 de 100 réplicas coinciden). Un resultado por debajo del umbral es estado indefinido — no verdad parcial — que el verificador trata como no concluyente y reintenta tras un intervalo. Las réplicas permanentemente desactualizadas pueden solicitar sincronización completa a las réplicas rápidas mediante pull-sync.
+Propagation is staggered: the fastest replicas receive the diff first and can answer queries almost immediately, while the slower ones update in the background. To avoid ambiguity during the inconsistency window, the protocol defines a hysteresis threshold: only a result that exceeds the configured threshold (for example, 80 out of 100 replicas agree) is accepted as valid. A result below the threshold is an undefined state—not partial truth—that the verifier treats as inconclusive and retries after an interval. Permanently outdated replicas can request a full synchronization from the fast replicas via pull-sync.
 
-<!-- TODO: translate -->
-La analogía es una CDN de identidad: las réplicas distribuyen certidumbre igual que una red de distribución de contenidos distribuye datos. La carga computacional de cada consulta es mínima — una operación aritmética sobre hashes — lo que hace el sistema accesible a dispositivos con recursos limitados. Añadir réplicas aumenta la resiliencia sin penalizar la velocidad de consulta individual. El coste de una consulta es equivalente a una petición HTTP estándar.
+The analogy is an identity CDN: replicas distribute certainty just as a content distribution network distributes data. The computational load of each query is minimal—a hash arithmetic operation—which makes the system accessible to resource-constrained devices. Adding replicas increases resilience without penalizing the speed of individual queries. The cost of a query is equivalent to a standard HTTP request.
 
-<!-- TODO: translate -->
-El riesgo principal es el ataque Sybil: si un atacante controla la mayoría de las réplicas puede validar relaciones inexistentes. La mitigación es estructural: las réplicas no son nodos anónimos sino entidades con identidad verificable en el propio grafo. Observadores con intereses contrapuestos — universidades de países distintos, organismos de diferentes jurisdicciones — hacen que la colusión sea socialmente improbable además de criptográficamente costosa. La especificación formal de este mecanismo se abordará en versiones futuras. La operación de verificación de cada réplica es directamente expresable en términos de la clase TrusteandoNode definida en la sección 4.11: verify_child_authorship encapsula exactamente el cálculo que cada réplica ejecuta para validar una credencial.
+The main risk is a Sybil attack: if an attacker controls a majority of replicas, they can validate relationships that do not exist. The mitigation is structural: replicas are not anonymous nodes but entities with verifiable identity within the graph itself. Observers with opposing interests—universities from different countries, agencies from different jurisdictions—make collusion socially unlikely as well as cryptographically expensive. The formal specification of this mechanism will be addressed in future versions. Each replica's verification operation is directly expressible in terms of the TrusteandoNode class defined in section 4.11: verify_child_authorship encapsulates exactly the calculation each replica executes to validate a credential.
 
 
 ## 4.4 Separation Between Authenticity and Authorship
 
-<!-- TODO: translate -->
-La introducción de auth_signature resuelve un problema estructural importante: sin ella, el nivel superior podría suplantar al inferior. Conoce la clave compartida, puede generar un HMAC válido, y podría construir una credencial aparentemente legítima atribuida a Juan. Con auth_signature eso es imposible — la clave privada de Juan nunca sale de su dispositivo.
+The introduction of auth_signature solves an important structural problem: without it, the superior level could impersonate the inferior. It knows the shared key, can generate a valid HMAC, and could construct a credential that appears legitimately attributed to Juan. With auth_signature that is impossible—the private key of Juan never leaves his device.
 
 Las dos propiedades son verificables independientemente:
 
-- <!-- TODO: translate --> Autenticidad — verificada por el nivel superior mediante el HMAC. Responde a: ¿viene esta credencial de alguien que yo reconozco?
-- <!-- TODO: translate --> Autoría — verificada por cualquier tercero con la clave pública del firmante mediante ECDSA. Responde a: ¿fue específicamente esta persona y no otra?
-<!-- TODO: translate -->
-Esta separación hace la cadena de confianza robusta frente a compromisos internos: incluso si un nivel superior es malicioso o está comprometido, no puede fabricar credenciales atribuibles a sus agentes inferiores. La sección 4.11 formaliza este mecanismo en términos del modelo TrusteandoNode: respond_to_challenge garantiza la autoría porque solo el titular de la clave puede producir la respuesta correcta, y verify_child_authorship permite al padre verificar sin que el hijo participe.
+- Authenticity — verified by the superior level via the HMAC. Answers: does this credential come from someone I recognize?
+- Authorship — verified by any third party using the signer's public key via ECDSA. Answers: was it specifically this person and not someone else?
+This separation makes the trust chain robust against internal compromises: even if a superior level is malicious or compromised, it cannot fabricate credentials attributable to its lower agents. Section 4.11 formalizes this mechanism in terms of the TrusteandoNode model: respond_to_challenge guarantees authorship because only the key holder can produce the correct response, and verify_child_authorship allows the parent to verify without the child's participation.
 
 
 ## 4.5 Non-repudiation and Dispute Resolution
 
-<!-- TODO: translate -->
-La firma ECDSA establece la evidencia técnica de autoría. Sin embargo el non-repudiation completo — la imposibilidad de negar la autoría incluso cuando ninguna de las partes quiere asumir responsabilidad — requiere algo más que criptografía.
+The ECDSA signature establishes the technical evidence of authorship. However, full non-repudiation—the impossibility of denying authorship even when neither party wants to assume responsibility—requires more than cryptography.
 
-En el momento del alta, el firmante suscribe ante el root un compromiso de responsabilidad: acepta que la clave privada registrada es suya y que asume responsabilidad por las credenciales firmadas con ella. El root custodia ese compromiso.
+At registration, the signer submits a responsibility commitment to the root: they accept that the registered private key belongs to them and that they assume responsibility for the credentials signed with it. The root safeguards that commitment.
 
-<!-- TODO: translate -->
-En caso de disputa en que ninguna de las partes quiere asumir la autoría:
+In the event of a dispute where neither party wants to assume authorship:
 
 
 ```
-1. El root presenta el compromiso firmado por Juan en el alta
-2. La evidencia criptográfica vincula ese compromiso con la credencial disputada
-mediante auth_signature verificable con la clave pública registrada
-3. La responsabilidad queda establecida aunque Juan no quiera reconocerla
+1. The root presents the commitment signed by Juan at registration
+2. The cryptographic evidence links that commitment to the disputed credential
+   via auth_signature verifiable with the registered public key
+3. Responsibility is established even if Juan refuses to acknowledge it
 
 ```
 
-<!-- TODO: translate -->
-Este mecanismo reconoce explícitamente que el non-repudiation no es solo un problema criptográfico. La criptografía establece la evidencia — el marco legal le da fuerza vinculante. Es el mismo modelo que usan los sistemas de firma electrónica cualificada bajo el reglamento eIDAS en la Unión Europea. El protocolo establece la evidencia; el marco institucional le da fuerza. Ambas capas son necesarias y ninguna sustituye a la otra.
+This mechanism explicitly acknowledges that non-repudiation is not just a cryptographic problem. Cryptography provides the evidence—the legal framework gives it binding force. It is the same model used by qualified electronic signature systems under the eIDAS regulation in the European Union. The protocol provides the evidence; the institutional framework gives it force. Both layers are necessary and neither replaces the other.
 
 
 ## 4.6 The Role of the Root Node
 
-El root tiene tres responsabilidades:
+The root has three responsibilities:
 
-- <!-- TODO: translate --> Una vez por agente: establecer la clave compartida con la entidad mediante ECDH, y publicar en su registro la asociación entre el entity_id de la entidad y su clave pública.
-- <!-- TODO: translate --> Mantener un registro público firmado de agentes reconocidos, actualizado periódicamente con un TTL que permite a los verificadores cachearlo localmente.
-- <!-- TODO: translate --> Custodiar las claves de emergencia registradas y aprobar migraciones de identidad cuando se le presenta evidencia válida.
-<!-- TODO: translate -->
-El registro de claves de emergencia con el root es asíncrono — un nodo puede publicar su hash_publico en su propia web y operar con normalidad antes de que el root lo registre. El root procesa los registros según su capacidad. El sistema no se bloquea mientras tanto.
+- Once per agent: establish the shared key with the entity via ECDH and publish in its registry the association between the entity_id of the entity and its public key.
+- Maintain a signed public registry of recognized agents, updated periodically with a TTL that allows verifiers to cache it locally.
+- Safeguard the registered emergency keys and approve identity migrations when presented with valid evidence.
+The registration of emergency keys with the root is asynchronous—a node can publish its hash_publico on its own web space and operate normally before the root records it. The root processes registrations according to its capacity. The system does not block in the meantime.
 
 
 ## 4.7 Identity Resilience — the Emergency Key
 
-<!-- TODO: translate -->
-Cada nodo genera en el momento de su creación una clave de emergencia que nunca comparte con su superior ni con ningún otro nodo. Con ella calcula su hash_publico:
+Each node generates at creation time an emergency key that it never shares with its superior or with any other node. With it, it computes its hash_publico:
 
 
 ```
@@ -500,8 +452,7 @@ hash_publico = hash(entity_id, clave_emergencia)
 
 ```
 
-<!-- TODO: translate -->
-El hash_publico se publica en la propia web del nodo como parte de su identidad pública, en una ruta estándar que cualquier implementación del protocolo sabe dónde buscar:
+hash_publico is published on the node's own website as part of its public identity, at a standard path that any protocol implementation knows to look for:
 
 
 ```
@@ -509,96 +460,84 @@ universidad.es/profesores/juan-escobar/hash_publico/a3f9e2b1c4d7...
 
 ```
 
-<!-- TODO: translate -->
-Cualquier tercero puede ver este valor. Solo Juan puede demostrar que lo generó, porque solo él conoce la clave_emergencia que lo produce. El hash_publico está anclado en dos lugares independientes: la propia web del nodo y, cuando el root lo registra, el registro central. Si cualquiera de los dos falla, el otro sostiene la cadena.
+Any third party can see this value. Only Juan can prove he generated it, because only he knows the clave_emergencia that produces it. hash_publico is anchored in two independent places: the node's own website and, when the root registers it, the central registry. If either one fails, the other sustains the chain.
 
-<!-- TODO: translate -->
-Migración voluntaria a un nuevo superior
+Voluntary migration to a new superior
 
-Cuando Juan quiere migrar a una nueva universidad, el proceso es:
+When Juan wants to migrate to a new university, the process is:
 
 
 ```
-1. Juan revela su clave_emergencia a universidad-b.es
+1. Juan reveals his clave_emergencia to universidad-b.es
 
-2. Universidad-b verifica contra el hash_publico publicado por Juan:
-hash(entity_id_juan, clave_emergencia) == hash_publico
-→ la adopción es legítima y voluntaria — Juan entregó la clave
+2. Universidad-b verifies against the hash_publico published by Juan:
+   hash(entity_id_juan, clave_emergencia) == hash_publico
+   → the adoption is legitimate and voluntary—Juan handed over the key
 
-3. Universidad-b comunica al root que conoce la clave_emergencia de Juan.
-Root verifica: hash(entity_id_juan, clave_emergencia) == hash_publico
-→ ecuación válida: migración confirmada. No hay discrecionalidad.
+3. Universidad-b informs the root that it knows Juan's clave_emergencia.
+   Root verifies: hash(entity_id_juan, clave_emergencia) == hash_publico
+   → valid equation: migration confirmed. There is no discretion.
 
-4. Universidad-b crea la entrada de Juan en su espacio:
-universidad-b.es/profesores/juan-escobar/
+4. Universidad-b creates Juan's entry in its space:
+   universidad-b.es/profesores/juan-escobar/
 
-5. Universidad-b registra el vínculo en su propia tabla old_identities,
-bajo su control — no bajo el control de Juan:
-universidad-b.es/old_identities/
-hash_nuevo → [ hash_nuevo, hash_antiguo_1, hash_antiguo_2, ... ]
+5. Universidad-b records the link in its own old_identities table,
+   under its control—not Juan's:
+   universidad-b.es/old_identities/
+   hash_nuevo → [ hash_nuevo, hash_antiguo_1, hash_antiguo_2, ... ]
 
-La cadena completa de identidades anteriores se publica entera.
-Universidad-b la recibió de universidad-a en el proceso de adopción,
-añade la nueva entrada, y la firma con su propia clave.
+   The complete chain of previous identities is published in full.
+   Universidad-b received it from universidad-a during the adoption process,
+   adds the new entry, and signs it with its own key.
 
-6. Juan genera una nueva clave_emergencia y publica nuevo hash_publico.
-La clave anterior queda invalidada.
-
-```
-
-<!-- TODO: translate -->
-La tabla old_identities es un registro institucional de la universidad, no de Juan. Juan no puede modificarla ni omitir entradas. Está firmada por la universidad con la misma autoridad que cualquier otra credencial que emite.
-
-```
-El rol del root en este proceso es puramente algorítmico: ejecuta la función pública hash(entity_id, clave_emergencia) == hash_publico y devuelve verdadero o falso. No tiene discrecionalidad para denegar una migración cuya ecuación se cumple, ni para aprobar una cuya ecuación no se cumple. Cualquier nodo que ejecute la misma función sobre los mismos datos obtendría idéntico resultado. El root no custodia ningún estado privilegiado — solo ejecuta un algoritmo público.
-```
-
-<!-- TODO: translate -->
-Publicar la cadena completa — no solo el vínculo inmediato anterior — permite a cualquier agente del sistema verificar el historial completo de Juan con una sola consulta, sin tener que saltar de servidor en servidor siguiendo eslabones uno a uno. Cada migración extiende la cadena por un elemento; la universidad receptora la hereda, la extiende, y la publica entera firmada.
-
-<!-- TODO: translate -->
-Adopción temporal por el root cuando el superior desaparece
-
-Si el superior de Juan desaparece — la universidad cierra, pierde el dominio, o es revocada — Juan puede identificarse ante el root con su clave_emergencia:
-
-
-```
-1. Juan presenta al root su clave_emergencia
-2. Root verifica: hash(entity_id_juan, clave_emergencia) == hash_publico registrado
-3. Root acoge a Juan como nodo huérfano bajo su tutela directa
-4. Juan opera con normalidad mientras encuentra un nuevo superior
-5. Cuando un nuevo superior lo adopta, sigue el proceso de migración estándar
+6. Juan generates a new clave_emergencia and publishes a new hash_publico.
+   The previous key is invalidated.
 
 ```
 
-<!-- TODO: translate -->
-Esta propiedad garantiza que la identidad de un nodo sobrevive a la desaparición de su superior. No empieza de cero — continúa con su historial, sus credenciales anteriores verificables, y su reputación acumulada. Es análogo a la portabilidad del número de teléfono, pero para identidad criptográfica: el titular controla la portabilidad, no el operador.
+The old_identities table is an institutional record of the university, not of Juan. Juan cannot modify it or omit entries. It is signed by the university with the same authority as any other credential it issues.
 
-<!-- TODO: translate -->
-Degradación con gracia
+```
+The role of the root in this process is purely algorithmic: it executes the public function hash(entity_id, clave_emergencia) == hash_publico and returns true or false. It has no discretion to deny a migration whose equation holds, nor to approve one whose equation does not hold. Any node executing the same function on the same data would obtain an identical result. The root does not hold any privileged state—it only executes a public algorithm.
+```
 
-<!-- TODO: translate -->
-Si el root está saturado o no disponible, los nodos existentes siguen operando con normalidad. Las verificaciones no requieren al root — consultan directamente las webs de las entidades. Solo se bloquean los registros nuevos y las migraciones, no el uso cotidiano del sistema.
+Publishing the entire chain—not just the immediate previous link—allows any agent in the system to verify Juan's complete history with a single query, without having to jump from server to server following each link one by one. Each migration extends the chain by an element; the receiving university inherits it, extends it, and publishes it entirely signed.
+
+Temporary adoption by the root when the superior disappears
+
+If Juan's superior disappears—the university closes, loses the domain, or is revoked—Juan can identify himself to the root with his clave_emergencia:
+
+
+```
+1. Juan presents his clave_emergencia to the root
+2. Root verifies: hash(entity_id_juan, clave_emergencia) == registered hash_publico
+3. Root welcomes Juan as an orphan node under its direct guardianship
+4. Juan operates normally while he finds a new superior
+5. When a new superior adopts him, he follows the standard migration process
+
+```
+
+This property guarantees that a node's identity survives the disappearance of its superior. It does not start from zero—it continues with its history, its previously verifiable credentials, and its accumulated reputation. It is analogous to telephone number portability, but for cryptographic identity: the holder controls portability, not the operator.
+
+Graceful degradation
+
+If the root is saturated or unavailable, existing nodes continue operating normally. Verifications do not require the root—they consult the entities' websites directly. Only new registrations and migrations are blocked, not the system's everyday use.
 
 
 ## 4.9 Distributed Trust Roots
 
-<!-- TODO: translate -->
-Con el tiempo, las entidades con reconocimiento público suficiente se convierten en raíces de confianza naturales. Un verificador que conoce y confía en una universidad puede verificar credenciales de sus profesores sin consultar al root de Trusteando.
+Over time, entities with sufficient public recognition become natural trust roots. A verifier who knows and trusts a university can verify credentials of its professors without consulting the Trusteando root.
 
-<!-- TODO: translate -->
-El sistema evoluciona de jerárquico a policéntrico de forma orgánica. El root de Trusteando hace bien su trabajo cuando deja de ser necesario para el uso cotidiano — cuando la red de confianza tiene suficientes nodos con reputación propia para sostenerse sin una autoridad central única.
+The system evolves from hierarchical to polycentric organically. The Trusteando root does its job well when it stops being necessary for everyday use—when the trust network has enough nodes with their own reputation to sustain itself without a single central authority.
 
 
 ## 4.10 Multiple Roots and Identity Independence
 
-<!-- TODO: translate -->
-Esta sección extiende el modelo criptográfico del protocolo para incorporar redundancia de testigos y desacoplamiento de la identidad de la infraestructura web. No reemplaza el modelo base — lo complementa. Una entidad puede tener identidad derivada de URL, identidad autónoma con secretos propios, o ambas vinculadas mediante old_identities/.
+This section extends the protocol's cryptographic model to incorporate witness redundancy and the decoupling of identity from the web infrastructure. It does not replace the base model—it complements it. An entity can have URL-derived identity, standalone identity with its own secrets, or both linked through old_identities/.
 
-4.10.1 Independencia del identificador
+4.10.1 Identifier independence
 
-<!-- TODO: translate -->
-En el modelo base el entity_id se deriva de la URL canónica. Esta decisión pragmática ancla la identidad en una presencia web preexistente pero crea dependencia de la infraestructura DNS y de la continuidad del dominio. Para entidades que requieren máxima resiliencia, el protocolo permite una modalidad alternativa: identidad autónoma. La entidad genera localmente su identificador y un secreto que solo ella conoce:
+In the base model the entity_id is derived from the canonical URL. This pragmatic decision anchors identity in a pre-existing web presence but creates dependency on DNS infrastructure and domain continuity. For entities requiring maximum resilience, the protocol allows an alternative mode: autonomous identity. The entity generates its identifier locally and a secret that only it knows:
 
 
 ```
@@ -606,14 +545,12 @@ object.id          = hash("universidad-de-málaga")
 object.secret_base = hash("frase secreta conocida solo por la universidad")
 ```
 
-<!-- TODO: translate -->
-La URL pasa a ser el ancla de publicación — donde la entidad publica sus datos — pero no el ancla de identidad. La identidad puede existir antes de que haya URL, puede sobrevivir a la pérdida del dominio y al bloqueo DNS, y puede mantenerse aunque el root original desaparezca.
+The URL becomes the publication anchor—where the entity publishes its data—but not the identity anchor. Identity can exist before there is a URL, can survive domain loss and DNS blocking, and can persist even if the original root disappears.
 
-<!-- TODO: translate -->
-4.10.2 Múltiples secretos para múltiples contextos
 
-<!-- TODO: translate -->
-Una entidad puede generar diferentes secretos para diferentes propósitos, manteniendo su aislamiento:
+4.10.2 Multiple secrets for multiple contexts
+
+An entity can generate different secrets for different purposes while maintaining their isolation:
 
 
 ```
@@ -622,27 +559,23 @@ secret_academico  = hash("frase para credenciales académicas")
 secret_emergencia = hash("frase para migraciones y rescate")
 ```
 
-<!-- TODO: translate -->
-Comprometer un secreto no afecta a los demás. Cada secreto genera su propia cadena de derivación criptográfica. Una misma entidad puede tener una identidad civil reconocida por roots gubernamentales, una identidad profesional reconocida por roots colegiales, y una identidad operativa reconocida por roots técnicos, sin que el compromiso de una afecte a las otras.
+Compromising one secret does not affect the others. Each secret generates its own cryptographic derivation chain. The same entity can have a civil identity recognized by governmental roots, a professional identity recognized by collegiate roots, and an operational identity recognized by technical roots, without the compromise of one affecting the others.
 
-<!-- TODO: translate -->
-4.10.3 Red de raíces múltiples
 
-<!-- TODO: translate -->
-Dado que el root es un algoritmo público trivial, cualquier nodo con suficiente reputación puede actuar como root. No hay distinción fundamental entre un root y un nodo de alta reputación: ambos ejecutan el mismo algoritmo público. Esto permite un ecosistema con miles de roots potenciales. La entidad elige al azar un conjunto de N roots (por ejemplo 5) y envía su solicitud a cada uno. Para cada root i y cada secreto j se deriva una clave pública específica:
+4.10.3 Multiple root network
+
+Since the root is a trivial public algorithm, any node with sufficient reputation can act as root. There is no fundamental distinction between a root and a high-reputation node: both execute the same public algorithm. This allows an ecosystem with thousands of potential roots. The entity randomly chooses a set of N roots (for example 5) and sends its request to each one. For each root i and each secret j a specific public key is derived:
 
 ```
 public_key[i][j] = hash(object.id + secret_j + root[i].secret)
 ```
 
-<!-- TODO: translate -->
-El resultado es una matriz de verificación de dimensiones roots × secretos. Cada celda es una prueba independiente de que la entidad conoce el secreto j y ha sido reconocida por el root i. No hay ningún root obligatorio. La diversidad geográfica, jurísdica y organizativa de los roots elegidos determina la resiliencia: un atacante que controla una jurisdicción o compromete una organización solo afecta a los roots de ese ámbito.
+The result is a verification matrix of dimensions roots × secrets. Each cell is an independent proof that the entity knows secret j and has been recognized by root i. There is no mandatory root. The geographical, jurisdictional, and organizational diversity of the chosen roots determines resilience: an attacker controlling one jurisdiction or compromising one organization only affects the roots in that scope.
 
-<!-- TODO: translate -->
-4.10.4 Quórum de validación
 
-<!-- TODO: translate -->
-Para operaciones sensibles — emisión de credenciales de alto valor, migración de identidad, resolución de disputas — la entidad puede requerir un quórum de K roots (con K ≤ N). Una operación es válida si presenta firmas válidas de al menos K roots independientes. Usando la gramática del protocolo:
+4.10.4 Validation quorum
+
+For sensitive operations—issuing high-value credentials, migrating identity, resolving disputes—the entity can require a quorum of K roots (with K ≤ N). An operation is valid if it presents valid signatures from at least K independent roots. Using the protocol grammar:
 
 
 ```
@@ -652,120 +585,103 @@ operacion/[quorum 3]/
 [testigo root-78]/
 ```
 
-<!-- TODO: translate -->
-Un verificador que encuentre el marcador [quorum 3] sabe que debe comprobar al menos 3 firmas de roots distintos antes de aceptar la operación. El mismo mecanismo aplica a nodos certificadores intermedios replicados en múltiples instancias: alterar un campo crítico — como la fecha de emisión de un título — requiere el consenso del quórum de instancias, no el control de una sola.
+A verifier who finds the [quorum 3] marker knows they must check at least 3 signatures from different roots before accepting the operation. The same mechanism applies to intermediate certifier nodes replicated across multiple instances: modifying a critical field—such as the issuance date of a degree—requires the consensus of the instance quorum, not the control of a single one.
 
-4.10.5 Propiedades resultantes
+4.10.5 Resulting properties
 
-<!-- TODO: translate -->
-Resiliencia ante compromiso local. Un atacante que comprometa un root puede falsear las claves de ese root pero no las de los otros. Si el quórum requerido es 3 y hay 5 roots, el atacante necesita comprometer 3 roots independientes, cada uno con su propia seguridad, gobernanza y localización.
+- Local compromise resilience. An attacker who compromises a root can falsify that root's keys but not the others. If the required quorum is 3 and there are 5 roots, the attacker needs to compromise 3 independent roots, each with its own security, governance, and location.
 
-<!-- TODO: translate -->
-Independencia de infraestructura. La identidad sobrevive a cambio de dominio, pérdida del servidor web, bloqueo DNS y desaparición del root original.
+- Infrastructure independence. Identity survives domain changes, web server loss, DNS blocking, and the disappearance of the original root.
 
-<!-- TODO: translate -->
-Escalabilidad de la confianza. Cualquier nodo con reputación puede ofrecerse como root. No hay límite superior. Las entidades pueden elegir sus roots al azar, por geografía, por ámbito institucional, o por cualquier criterio.
+- Scalability of trust. Any node with reputation can offer itself as a root. There is no upper limit. Entities can choose their roots at random, by geography, institutional scope, or any other criterion.
 
-<!-- TODO: translate -->
-Separación de contextos. Los diferentes secretos permiten que una misma entidad tenga identidades en distintos contextos institucionales sin que el compromiso de una afecte a las otras.
+- Context separation. The different secrets allow the same entity to have identities in different institutional contexts without the compromise of one affecting the others.
 
-<!-- TODO: translate -->
-Esta extensión convierte Trusteando en un sistema policefálico por diseño desde el momento del alta. No hay un único punto de fallo, no hay una única autoridad de la que dependa la existencia de una identidad. La identidad es del sujeto, respaldada por un quórum de testigos independientes que ejecutan un algoritmo público. El resultado es un sistema que hereda la robustez de los sistemas de consenso distribuido sin necesidad de blockchain, porque la prueba de existencia es la multiplicidad de firmas independientes, no una cadena inmutable compartida.
+This extension turns Trusteando into a polycephalic system by design from the moment of registration. There is no single point of failure, no single authority on which an identity's existence depends. Identity belongs to the subject, backed by a quorum of independent witnesses executing a public algorithm. The result is a system that inherits the robustness of distributed consensus systems without needing a blockchain, because the proof of existence is the multiplicity of independent signatures, not a shared immutable chain.
 
 
 ---
 
 # 4.11 The Protocol Core: Four Functions
 
-<!-- TODO: translate -->
-Trusteando se construye sobre una premisa tan simple como profunda: cada carpeta del grafo es un nodo, y cada nodo tiene una clave privada que se deriva directamente de su ruta en la jerarquía. No hay infraestructura de clave pública separada. No hay certificados. No hay autoridades externas. La estructura de carpetas es la infraestructura criptográfica. Todo el protocolo se reduce a cuatro funciones que caben en unas pocas líneas de código. Aunque parecen simples, resuelven todos los problemas planteados sin casos especiales ni cabos sueltos.
+Trusteando is built on a premise as simple as it is profound: each folder in the graph is a node, and each node has a private key derived directly from its path in the hierarchy. There is no separate public key infrastructure. There are no certificates. There are no external authorities. The folder structure is the cryptographic infrastructure. The entire protocol boils down to four functions that fit in a few lines of code. Although they seem simple, they solve all the problems raised without special cases or loose ends.
 
 
 ```
 class TrusteandoNode:
 def __init__(self, key):
-self.key = key
+    self.key = key
 
 @staticmethod
 def reduce_hash(seed, elements):
-"""Operación primitiva: fold hash por la izquierda"""
-result = seed
-for element in elements:
-result = hash(result + element)
-return result
+    """Operación primitiva: fold hash por la izquierda"""
+    result = seed
+    for element in elements:
+    result = hash(result + element)
+    return result
 
 def grant_key(self, child_path_segment):
-"""El padre otorga una clave al hijo"""
-return hash(self.key + child_path_segment)
+    """El padre otorga una clave al hijo"""
+    return hash(self.key + child_path_segment)
 
 def respond_to_challenge(self, context_elements):
-"""El hijo responde a un reto sin revelar su clave"""
-return self.reduce_hash(self.key, context_elements)
+    """El hijo responde a un reto sin revelar su clave"""
+    return self.reduce_hash(self.key, context_elements)
 
 def verify_child_authorship(self, child_path_segment, context_elements, proof):
-"""Solo el padre puede verificar la autoría de un hijo"""
-child_key = self.grant_key(child_path_segment)
-return self.reduce_hash(child_key, context_elements) == proof
+    """Solo el padre puede verificar la autoría de un hijo"""
+    child_key = self.grant_key(child_path_segment)
+    return self.reduce_hash(child_key, context_elements) == proof
 
 ```
 
 
 ## 4.11.1 reduce_hash: the Primitive Operation
 
-<!-- TODO: translate -->
-reduce_hash es la única operación criptográfica que necesita el protocolo. Toma una semilla y una lista de elementos y devuelve un hash que depende de todos ellos en orden. Es determinista (mismos inputs producen mismo output), unidireccional (el output no permite recuperar ningún input), sensible al orden (reduce_hash(s, [a,b]) es distinto de reduce_hash(s, [b,a])), y composable (se puede verificar por etapas).
+reduce_hash is the only cryptographic operation the protocol needs. It takes a seed and a list of elements and returns a hash that depends on all of them in order. It is deterministic (same inputs produce the same output), one-way (the output does not allow recovering any input), order-sensitive (reduce_hash(s, [a,b]) differs from reduce_hash(s, [b,a])), and composable (it can be verified in stages).
 
 
 ## 4.11.2 grant_key: the Parent Grants Keys to the Child
 
-<!-- TODO: translate -->
-Cuando un nodo padre incorpora un hijo con un segmento de ruta, le otorga una clave derivada: child_key = hash(parent_key + child_path_segment). El padre entrega child_key al hijo por un canal seguro. A partir de ese momento el hijo conoce su clave, el padre puede recalcularla cuando sea necesario, y nadie más la conoce. El hijo nunca conoce la clave del padre — la dirección de confianza es estrictamente descendente.
+When a parent node incorporates a child with a path segment, it grants it a derived key: child_key = hash(parent_key + child_path_segment). The parent delivers child_key to the child over a secure channel. From that moment, the child knows its key, the parent can recompute it when necessary, and no one else knows it. The child never learns the parent's key—the direction of trust is strictly downward.
 
 
 ## 4.11.3 respond_to_challenge: the Child Responds Without Revealing its Key
 
-<!-- TODO: translate -->
-Cuando un nodo quiere probar su identidad para un contexto específico, genera una prueba: prueba = reduce_hash(self.key, [verificador_id, hash(contenido), timestamp]). El nodo no revela su clave, solo demuestra que la conoce. La prueba es específica para ese verificador, ese contenido y ese momento — no puede reutilizarse ni transferirse.
+When a node wants to prove its identity for a specific context, it generates a proof: proof = reduce_hash(self.key, [verifier_id, hash(content), timestamp]). The node does not reveal its key; it only demonstrates that it knows it. The proof is specific to that verifier, that content, and that moment—it cannot be reused or transferred.
 
-<!-- TODO: translate -->
-Ejemplo: un profesor publica un comentario en un foro externo con su profesor_id. El moderador quiere verificar que es realmente ese profesor. El moderador envía al profesor: [moderador_id, hash(comentario), timestamp]. El profesor calcula respond_to_challenge([moderador_id, hash(comentario), timestamp]) y envía la respuesta. El moderador la envía al nodo padre — el que aparece en la ruta del profesor_id — junto con el contexto. El padre verifica.
+Example: a professor posts a comment on an external forum with their professor_id. The moderator wants to verify that it really is that professor. The moderator sends the professor: [moderator_id, hash(comment), timestamp]. The professor calculates respond_to_challenge([moderator_id, hash(comment), timestamp]) and sends the response. The moderator forwards it to the parent node—the one in the professor_id path—along with the context. The parent verifies.
 
 
 ## 4.11.4 verify_child_authorship: Only the Parent Verifies
 
-<!-- TODO: translate -->
-El verificador externo no elige a quién preguntar arbitrariamente — pregunta siempre al nodo padre del hijo que emitió la prueba. Si el identificador es uma.es/profesores/juan, la solicitud de verificación va a uma.es/profesores. El padre recalcula la clave del hijo con grant_key y verifica la prueba con reduce_hash. Si coinciden, la prueba es auténtica. El hijo no participa en la verificación.
+The external verifier does not choose arbitrarily whom to ask—it always queries the parent node of the child that issued the proof. If the identifier is uma.es/profesores/juan, the verification request goes to uma.es/profesores. The parent recalculates the child's key with grant_key and verifies the proof with reduce_hash. If they match, the proof is authentic. The child does not participate in the verification.
 
 
 ## 4.11.5 Security Properties Emerging from Simplicity
 
-<!-- TODO: translate -->
-No repudio: solo quien tiene la clave puede producir respond_to_challenge correcto. No reutilizable: context_elements incluye verificador_id y timestamp, únicos por interacción. No transferible: la respuesta solo es válida para ese conjunto específico de elementos. Sin revelación de clave: reduce_hash es unidireccional; la respuesta no permite recuperar la clave. Verificación por el padre: verify_child_authorship recalcula sin necesitar al hijo. Jerarquía de confianza: grant_key es la única forma de crear un nodo hijo válido, siempre de padre a hijo. Verificación externa: cualquier sistema — foros, correo, documentos — puede usar el mismo mecanismo enviando un reto y verificando la respuesta con el padre. No hay casos especiales. No hay estado oculto. Todo el sistema es determinínista, auditable y verificable por construcción.
+Non-repudiation: only the key holder can produce a correct respond_to_challenge. Non-reusable: context_elements includes verifier_id and timestamp, unique per interaction. Non-transferable: the response is valid only for that specific set of elements. No key disclosure: reduce_hash is one-way; the response does not allow recovering the key. Parent verification: verify_child_authorship recalculates without needing the child. Trust hierarchy: grant_key is the only way to create a valid child node, always from parent to child. External verification: any system—forums, mail, documents—can use the same mechanism by sending a challenge and verifying the response with the parent. There are no special cases. There is no hidden state. The entire system is deterministic, auditable, and verifiable by construction.
 
 
 ---
 
 # 5. Two Levels of Existence
 
-Una entidad puede operar en dos niveles distintos en el sistema:
+An entity can operate at two distinct levels in the system:
 
-Nivel
+Level
 
-<!-- TODO: translate -->
-Descripción
+Description
 
-Identidad declarada
+Declared identity
 
-<!-- TODO: translate -->
-La entidad publica sus hashes y claves en su propia URL. La cadena es coherente y verificable por cualquiera que conozca la entidad. No hay garantía externa para verificadores que no la conocen. Útil para sistemas internos, comunidades cerradas, o para construir la cadena antes de solicitar reconocimiento formal.
+The entity publishes its hashes and keys on its own URL. The chain is coherent and verifiable by anyone who knows the entity. There is no external guarantee for verifiers who do not know it. Useful for internal systems, closed communities, or for building the chain before requesting formal recognition.
 
-Identidad reconocida
+Recognized identity
 
-El root ha establecido una clave compartida con la entidad y publicado su certificado de agente. La cadena es verificable por cualquier tercero sin conocimiento previo de la entidad. La confianza es transitiva hacia los niveles inferiores.
+The root has established a shared key with the entity and published its agent certificate. The chain is verifiable by any third party without prior knowledge of the entity. Trust is transitive to the lower levels.
 
-
-<!-- TODO: translate -->
-Una entidad puede operar en nivel 1 indefinidamente. El nivel 2 añade verificabilidad para terceros desconocidos — no es un requisito para que el sistema funcione.
+An entity can operate at level 1 indefinitely. Level 2 adds verifiability for unknown third parties—it is not required for the system to function.
 
 
 ---
@@ -775,97 +691,83 @@ Una entidad puede operar en nivel 1 indefinidamente. El nivel 2 añade verificab
 
 ## 6.1 Privacy by Default
 
-<!-- TODO: translate -->
-El verificador ve solo el resultado de la verificación: la credencial es válida o no lo es. La cadena completa de confianza — qué entidades están implicadas, qué dice el mensaje original — queda oculta salvo que el titular de la credencial decida revelarla explícitamente.
+The verifier sees only the verification result: the credential is valid or it is not. The complete trust chain—what entities are involved, what the original message states—remains hidden unless the credential holder decides to reveal it explicitly.
 
-El hash del mensaje permite verificar la integridad sin revelar el contenido. El emisor puede demostrar que el mensaje no ha sido alterado sin mostrar el mensaje mismo.
+The message hash allows verifying integrity without revealing the content. The issuer can prove the message has not been altered without showing the message itself.
 
 
 ## 6.2 Selective Disclosure
 
-<!-- TODO: translate -->
-El titular de una credencial puede elegir qué revelar en cada contexto:
+The credential holder can choose what to reveal in each context:
 
-- <!-- TODO: translate --> Solo el resultado: la credencial es válida — sin revelar quién la emitió ni qué dice
-- <!-- TODO: translate --> El emisor pero no el contenido: esta credencial viene de universidad.es — sin revelar el rol específico
-- <!-- TODO: translate --> La cadena completa: universidad.es certifica que Juan Escobar es Profesor Asociado del Departamento de Informática
-<!-- TODO: translate -->
-Esta propiedad permite casos de uso como verificación de mayoría de edad sin revelar la fecha de nacimiento, o verificación de pertenencia a una organización sin revelar el cargo.
+- Only the result: the credential is valid—without revealing who issued it or what it states.
+- The issuer but not the content: this credential comes from universidad.es—without revealing the specific role.
+- The entire chain: universidad.es certifies that Juan Escobar is Associate Professor of the Computer Science Department.
+
+This property enables use cases such as proving majority age without revealing the birthdate, or proving membership in an organization without revealing the position.
 
 
 ## 6.3 What the System Does Not Hide
 
-<!-- TODO: translate -->
-El hecho de que una entidad está registrada como agente en el root es público — forma parte del registro de agentes reconocidos. El entity_id (hash de la URL) de una entidad es derivable por cualquiera que conozca su URL. El protocolo no está diseñado para ocultar la existencia de las entidades participantes, solo para proteger el contenido de las credenciales que emiten.
+The fact that an entity is registered as an agent in the root is public—it is part of the recognized agents registry. The entity_id (hash of the URL) of an entity is derivable by anyone who knows its URL. The protocol is not designed to hide the existence of participating entities, only to protect the content of the credentials they issue.
 
 
 ## 6.4 Dynamic Privacy via Manager
 
-<!-- TODO: translate -->
-La carpeta private/ es un mecanismo estático: la información existe en el servidor pero no se expone por defecto. Para casos que requieren control de acceso dinámico — donde la decisión de revelar depende del contexto de cada solicitud — el protocolo permite un modelo de gestor. El gestor es software que recibe la petición, identifica quién pregunta, decide si concede acceso, y sirve la información solo en ese momento bajo demanda. En Trusteando este gestor es el agente que controla la carpeta private/, implementado mediante requestReveal() y grantReveal(). La URL estática es el modelo para información pública; el gestor es el modelo para información privada bajo demanda. Los dos modelos son complementarios y pueden coexistir en el mismo nodo.
+The private/ folder is a static mechanism: the information exists on the server but is not exposed by default. For cases requiring dynamic access control—where the decision to reveal depends on the context of each request—the protocol allows a manager model. The manager is software that receives the request, identifies who is asking, decides whether to grant access, and serves the information only on demand. In Trusteando this manager is the agent that controls the private/ folder, implemented via requestReveal() and grantReveal(). The static URL is the model for public information; the manager is the model for private information on demand. The two models are complementary and can coexist within the same node.
 
 
 ---
 
 # 7. Use Cases
 
-<!-- TODO: translate -->
-El protocolo es agnóstico al contenido de las credenciales. Los casos de uso siguientes ilustran la generalidad del mecanismo — no son los únicos posibles.
+The protocol is agnostic to the content of credentials. The following use cases illustrate the generality of the mechanism—they are not the only possible ones.
 
 
 ## 7.1 Academic and Professional Credentials
 
-<!-- TODO: translate -->
-Una universidad registra a sus profesores en su espacio de identidad. Un colegio de médicos registra a sus colegiados. Un bar de abogados registra a sus miembros. Cualquier verificador puede comprobar la credencial sin llamar a ningún servidor central — consultando la URL de la entidad emisora y verificando la firma.
+A university registers its professors in its identity space. A medical college registers its members. A law firm registers its members. Any verifier can check the credential without calling a central server—by consulting the issuer's URL and verifying the signature.
 
 
 ## 7.2 Presence-Verified Reviews
 
-<!-- TODO: translate -->
-Un establecimiento registra tokens de presencia temporales — por ejemplo mediante un código QR rotativo disponible solo en el local. Un usuario que estuvo físicamente en el local puede obtener un token de presencia y usarlo para firmar una reseña. La reseña lleva una credencial de presencia que cualquiera puede verificar: esta persona estuvo en este lugar.
+A venue registers temporary presence tokens—for example using a rotating QR code available only on-site. A user who was physically present can obtain a presence token and use it to sign a review. The review carries a presence credential that anyone can verify: this person was at this place.
 
-<!-- TODO: translate -->
-Este es el caso de uso que motivó el desarrollo inicial del protocolo. La verificación de presencia es un caso particular de credencial verificable — no un mecanismo distinto.
+This is the use case that motivated the initial development of the protocol. Presence verification is a particular case of a verifiable credential—not a separate mechanism.
 
 
-## 7.3 Verificación de comunicaciones
+## 7.3 Communication Verification
 
-<!-- TODO: translate -->
-El servidor de correo de una empresa, registrado como agente delegado por la empresa, puede emitir credenciales que certifiquen que un correo fue enviado entre dos partes en una fecha determinada. El contenido del correo puede permanecer privado — solo el hash del mensaje y la credencial de envío son necesarios para la verificación.
-
-
-## 7.4 Verificación de condición sin revelar datos
-
-<!-- TODO: translate -->
-Una entidad con autoridad sobre datos personales — un registro civil, una universidad, un sistema de salud — puede emitir credenciales de condición: mayor de edad, titulado universitario, profesional sanitario colegiado. El verificador recibe la confirmación de la condición sin acceder a los datos subyacentes.
+A company's mail server, registered as a delegated agent by the company, can issue credentials certifying that an email was sent between two parties on a specific date. The email's content can remain private—only the message hash and the sending credential are needed for verification.
 
 
-## 7.5 Delegación de autoridad dentro de organizaciones
+## 7.4 Condition Verification Without Revealing Data
 
-<!-- TODO: translate -->
-Una empresa puede registrar como agentes delegados sus divisiones, departamentos, o sistemas internos. Cada uno puede emitir credenciales en su ámbito. La cadena de delegación es verificable externamente sin exponer la estructura interna de la organización.
+An authority over personal data—a civil registry, a university, a health system—can issue condition credentials: over 18, university graduate, registered healthcare professional. The verifier receives confirmation of the condition without accessing the underlying data.
 
 
-## 7.6 Autoría verificable de contenido
+## 7.5 Delegation of Authority Within Organizations
 
-<!-- TODO: translate -->
-Un autor puede firmar un documento, un artículo, o cualquier contenido digital con su credencial Trusteando. Cualquier verificador puede comprobar que el contenido fue producido por esa persona y que no ha sido alterado desde entonces, sin necesidad de terceros de confianza adicionales.
+A company can register its divisions, departments, or internal systems as delegated agents. Each can issue credentials within its scope. The delegation chain is externally verifiable without exposing the organization's internal structure.
+
+
+## 7.6 Verifiable Authorship of Content
+
+An author can sign a document, article, or any digital content with their Trusteando credential. Any verifier can confirm that the content was produced by that person and has not been altered since, without needing additional trusted third parties.
 
 
 ## 7.7 Multi-Agency Emergency Coordination
 
-<!-- TODO: translate -->
-La estructura jerárquica de Trusteando no solo sirve para identidad estática — es un modelo natural para representar estructuras de mando y coordinación en tiempo real. En incidentes donde intervienen múltiples organismos — policía, bomberos, servicios sanitarios, protección civil — la capacidad de publicar y leer estados operativos en carpetas estructuradas elimina la fricción de la comunicación por radio y la pérdida de información en los relevos.
+Trusteando's hierarchical structure not only serves static identity—it is a natural model for representing command and coordination structures in real time. In incidents involving multiple agencies—police, firefighters, emergency medical services, civil protection—the ability to publish and read operational statuses in structured folders removes the friction of radio communication and the loss of information during handovers.
 
-<!-- TODO: translate -->
-Cada interviniente es un nodo. Cada equipo publica su ubicación, estado y necesidades bajo su propia URL. El mando del incidente publica órdenes usando la convención plan/execution: plan/ contiene el objetivo y el plazo; execution/ lo actualizan los equipos con su progreso real. La ausencia de execution/end/ indica que la orden sigue activa. Las solicitudes de coordinación entre agencias — por ejemplo, policía solicitando a bomberos que despejen un acceso — son entradas de carpeta que ambas partes pueden ver, aceptar y ejecutar con trazabilidad completa.
+Each responder is a node. Each team publishes its location, status, and needs under its own URL. The incident command publishes orders using the plan/execution convention: plan/ contains the objective and timeline; execution/ is updated by the teams with their actual progress. The absence of execution/end/ indicates the order remains active. Coordination requests between agencies—for example police requesting that firefighters clear an access—are folder entries that both parties can see, accept, and execute with full traceability.
 
 ```
 emergencias.madrid.es/incidents/2026-03-18/incendio-xxx/
 ├── command/
-│   ├── orders/orden-001/
-│   │   ├── plan/      ← objetivo, plazo, equipos asignados  (firma: mando)
-│   │   └── execution/ ← partes, incidencias, end/ cuando completa  (firma: equipo)
+│   ├── orders/order-001/
+│   │   ├── plan/      ← objective, deadline, assigned teams  (signature: command)
+│   │   └── execution/ ← teams, incidents, end/ when complete  (signature: team)
 ├── firefighters/
 │   ├── deployment/equipos/      ← quién está dónde
 │   └── requests/police/     ← coordinación entre agencias
@@ -873,35 +775,27 @@ emergencias.madrid.es/incidents/2026-03-18/incendio-xxx/
 └── medics/
 ```
 
-<!-- TODO: translate -->
-El resultado es trazabilidad completa: cada acción, cada orden, cada cambio de estado queda firmado y fechado. El mando ve en una sola pantalla el estado real de todos los equipos sin una llamada de radio. En un relevo, el equipo entrante consulta execution/ del equipo saliente y retoma sin pérdida de información. Tras el incidente, el registro completo es verificable y sirve como base para la reconstrucción forense.
+The result is full traceability: every action, every order, every status change remains signed and timestamped. Command sees the real-time status of all teams on a single screen without a radio call. During a handover, the incoming team checks the execution/ of the outgoing team and continues without losing information. After the incident, the complete record is verifiable and serves as the basis for forensic reconstruction.
 
-<!-- TODO: translate -->
-Una ventaja adicional es la velocidad de diseño organizativo. Ante una emergencia nueva — un tipo de incidente poco frecuente, una zona geográfica desconocida, una combinación inusual de agencias — un modelo de lenguaje puede generar en segundos una propuesta completa de estructura de carpetas adaptada al contexto: qué nodos intervienen, qué carpetas necesita cada uno, cómo se expresan las relaciones de mando y las solicitudes entre agencias. El equipo humano evalúa la propuesta, la ajusta si es necesario, y la estructura está operativa de inmediato. Lo que antes requería reuniones y documentos de procedimiento puede resolverse en minutos, con el protocolo como lenguaje común que tanto humanos como sistemas automáticos entienden sin ambigüedad.
+An additional advantage is the speed of organizational design. Faced with a new emergency—a rare incident type, an unfamiliar geographic area, an unusual combination of agencies—a language model can generate in seconds a complete folder structure proposal tailored to the context: which nodes are involved, what folders each needs, and how command relationships and inter-agency requests are expressed. The human team evaluates the proposal, adjusts it if necessary, and the structure is operational immediately. What once required meetings and procedure documents can be resolved in minutes, with the protocol as a common language that both humans and automated systems understand without ambiguity.
 
 
 ## 7.8 Interoperability Between Administrations and Organisations
 
-<!-- TODO: translate -->
-La interoperabilidad entre administraciones públicas es hoy un problema sin resolver estructuralmente. Cada par de organismos que necesita intercambiar datos requiere un convenio bilateral, un formato de intercambio específico, y una pasarela técnica que traduzca entre sistemas heterogéneos. El coste de integración crece con el número de actores. Trusteando invierte esta dinámica gracias a la naturaleza del protocolo: cualquier sistema — una base de datos relacional, una API existente, un registro heredado — puede exponer sus datos a través de una interfaz que respeta el esquema de carpetas sin necesidad de migrar ni reescribir su infraestructura interna. Una vez que dos organismos respetan el mismo esquema, son interoperables por construcción. No hay que negociar ningún convenio adicional.
+Interoperability between public administrations is still an unresolved structural problem. Every pair of agencies that needs to exchange data requires a bilateral agreement, a specific exchange format, and a technical gateway that translates between heterogeneous systems. The integration cost grows with the number of actors. Trusteando inverts this dynamic thanks to the protocol's nature: any system—a relational database, an existing API, a legacy registry—can expose its data through an interface that respects the folder schema without needing to migrate or rewrite its internal infrastructure. Once two agencies respect the same schema, they are interoperable by construction. There is no need to negotiate any additional agreement.
 
-<!-- TODO: translate -->
-El cambio fundamental es pasar de intercambiar documentos a publicar hechos. Un organismo no emite un certificado en PDF — publica una afirmación verificable bajo su URL. Cualquier otro organismo que necesite ese dato no solicita un documento: consulta directamente la URL, verifica la firma, y obtiene un hecho procesable automáticamente. El permiso de lectura es implícito en la publicación. No hace falta una autorización específica para cada consulta.
+The fundamental shift is moving from exchanging documents to publishing facts. An agency does not issue a certificate in PDF—it publishes a verifiable claim under its URL. Any other agency that needs that data does not request a document: it queries the URL directly, verifies the signature, and obtains a fact that can be processed automatically. The read permission is implicit in the publication. There is no need for a specific authorization for each query.
 
-<!-- TODO: translate -->
-Ejemplo. Un organismo necesita verificar que una persona tiene título universitario, máster y está colegiada. Hoy: tres consultas a tres sistemas distintos, tres formatos diferentes, tres autorizaciones, cruce manual de datos. Con Trusteando: tres URLs, mismo formato, misma verificación, resultado automáticamente coherente porque cada dato está firmado por quien tiene autoridad sobre él.
+Example: an agency needs to verify that a person has a university degree, a master's, and is a registered professional. Today: three queries to three different systems, three formats, three authorizations, and manual data merging. With Trusteando: three URLs, the same format, the same verification, and an automatically coherent result because each datum is signed by the authority over it.
 
-<!-- TODO: translate -->
-La capa de adaptadores (sección 11) permite que organismos con sistemas legados participen sin reescribir su infraestructura: el adaptador expone la misma interfaz Trusteando sobre cualquier base de datos interna. Para el verificador externo, consultar el registro civil de un ayuntamiento es idéntico a consultar el registro de titulaciones de una universidad. La complejidad interna queda encapsulada; la interfaz pública es uniforme.
+The adapter layer (section 11) allows agencies with legacy systems to participate without rewriting their infrastructure: the adapter exposes the same Trusteando interface over any internal database. For the external verifier, consulting a municipality's civil registry is identical to consulting a university's credential registry. Internal complexity is encapsulated; the public interface is uniform.
 
-<!-- TODO: translate -->
-Los organismos pequeños sin capacidad técnica propia pueden delegar la publicación en un nodo superior — una diputación provincial, un organismo agregador — que actúa como proveedor de infraestructura. Los datos se publican bajo la URL del organismo delegante, firmados de forma que se puede verificar su origen. La interoperabilidad no requiere que cada actor tenga infraestructura propia.
+Small agencies without their own technical capacity can delegate publishing to a superior node—a provincial government, an aggregator agency—that acts as an infrastructure provider. The data is published under the delegating agency's URL, signed in a way that allows verifying its origin. Interoperability does not require each actor to have its own infrastructure.
 
 
 ## 7.9 Agreements and Contracts as Graph Nodes
 
-<!-- TODO: translate -->
-Un acuerdo entre dos o más partes puede representarse como un nodo independiente en el grafo. Siguiendo la analogía OOP de la sección 2.11, el acuerdo es el objeto, los participantes son sus propiedades, y plan/execution son sus métodos. Cada parte publica el acuerdo en su propio espacio, y la concordancia entre ambas publicaciones constituye la prueba de consentimiento bilateral.
+An agreement between two or more parties can be represented as an independent node in the graph. Following the OOP analogy of section 2.11, the agreement is the object, the participants are its properties, and plan/execution are its methods. Each party publishes the agreement in its own space, and the match between both publications constitutes the proof of bilateral consent.
 
 
 ```
@@ -920,240 +814,210 @@ acuerdo-servicios-2026-xyz/
 └── private/             ← condiciones económicas, privadas
 ```
 
-<!-- TODO: translate -->
-Cada parte publica una copia idéntica en su propio espacio:
+Each party publishes an identical copy in its own space:
 
 ```
 empresaA.es/trusteando/acuerdos/acuerdo-servicios-2026-xyz/
 empresaB.es/trusteando/acuerdos/acuerdo-servicios-2026-xyz/
 ```
 
-<!-- TODO: translate -->
-Un verificador que consulte cualquiera de las dos URLs puede verificar la firma de esa parte, comprobar que la otra parte ha publicado la misma estructura, confirmar que las fechas de firma coinciden, y concluir que el acuerdo es bilateralmente válido. Si las estructuras difieren, hay disputa. Si una parte no ha publicado, el acuerdo no está completado. El protocolo no necesita ningún sistema externo para registrar contratos — la concordancia entre dos nodos es la prueba.
+A verifier that consults either of the two URLs can verify that party's signature, confirm that the other party has published the same structure, check that the signing dates match, and conclude that the agreement is bilaterally valid. If the structures differ, there is a dispute. If a party has not published, the agreement is not completed. The protocol does not need an external system to record contracts—the concordance between two nodes is the proof.
 
 
 ---
 
 # 8. Sustainability Model
 
-<!-- TODO: translate -->
-El protocolo es abierto. La implementación de referencia es software libre. Lo que puede monetizarse es la capa de servicio sobre el protocolo — no el protocolo mismo.
+The protocol is open. The reference implementation is free software. What can be monetized is the service layer over the protocol—not the protocol itself.
 
 
-## 8.1 Reconocimiento formal como agente
+## 8.1 Formal recognition as an agent
 
-<!-- TODO: translate -->
-El registro en el root de Trusteando tiene valor de señal, especialmente en las fases iniciales cuando el root es la principal raíz de confianza establecida. El reconocimiento formal tiene un coste razonable y criterio público y transparente.
-
-
-## 8.2 Infraestructura gestionada
-
-<!-- TODO: translate -->
-Implementar un nodo Trusteando completo requiere conocimientos técnicos que no todas las entidades tienen. Trusteando ofrece infraestructura gestionada — el nodo como servicio — para entidades que quieren participar sin gestionar la infraestructura. Es el modelo de WordPress: el protocolo es libre, el hosting gestionado no tiene por qué serlo.
+Registering with the Trusteando root has signaling value, especially in the early phases when the root is the principal established trust root. Formal recognition has a reasonable cost and a public, transparent criteria.
 
 
-## 8.3 API de verificación
+## 8.2 Managed infrastructure
 
-<!-- TODO: translate -->
-Aplicaciones de terceros que quieran integrar verificación Trusteando sin implementar el protocolo completo pueden usar una API de verificación. El precio es por volumen de verificaciones. El protocolo permanece libre — la API es una conveniencia, no un requisito.
+Implementing a full Trusteando node requires technical knowledge that not all entities possess. Trusteando offers managed infrastructure—the node as a service—for entities that want to participate without managing the infrastructure themselves. It is the WordPress model: the protocol is free, but managed hosting does not have to be.
 
 
-## 8.4 Lo que permanece libre
+## 8.3 Verification API
 
-- El formato completo del protocolo
-- La capacidad de montar nodos propios
-- <!-- TODO: translate --> La verificación manual consultando URLs directamente
-- <!-- TODO: translate --> La publicación de credenciales sin pasar por el root
-- <!-- TODO: translate --> La implementación de verificadores propios
+Third-party applications that want to integrate Trusteando verification without implementing the full protocol can use a verification API. The price is based on verification volume. The protocol remains free—the API is a convenience, not a requirement.
+
+
+## 8.4 What remains free
+
+- The complete protocol format
+- The ability to run your own nodes
+- Manual verification by consulting URLs directly
+- Publishing credentials without passing through the root
+- Implementing your own verifiers
 
 ---
 
 # 9. The Bootstrap Problem
 
-<!-- TODO: translate -->
-El valor del root depende de la reputación de quien lo opera. Los sistemas de confianza no nacen de la nada — necesitan un punto de partida con credibilidad suficiente para que las primeras entidades quieran registrarse.
+The root's value depends on the reputation of whoever operates it. Trust systems do not arise out of nothing—they need a starting point with enough credibility for the first entities to want to register.
 
-<!-- TODO: translate -->
-Este es el mismo problema que resolvieron DNS, Let's Encrypt, y cualquier PKI: al principio la autoridad no viene del sistema — viene de las personas y organizaciones detrás de él. La solución no es técnica sino social: las primeras entidades reconocidas se consiguen con relaciones personales, casos de uso concretos que resuelven problemas reales, y credibilidad del equipo fundador en ese contexto.
+This is the same problem that DNS, Let's Encrypt, and any PKI solved: at the beginning the authority does not come from the system—it comes from the people and organizations behind it. The solution is social, not technical: the first recognized entities are secured through personal relationships, concrete use cases that solve real problems, and the credibility of the founding team in that context.
 
-<!-- TODO: translate -->
-La estrategia de arranque correcta es publicar el protocolo abiertamente y con prioridad temporal establecida, antes de que ningún competidor pueda reclamar la misma idea. La apertura no debilita la posición del root — la refuerza. Un root que opera un protocolo cerrado puede ser reemplazado por cualquiera que publique un protocolo mejor. Un root que opera el protocolo estándar de facto acumula legitimidad que no se puede copiar.
+The correct launch strategy is to publish the protocol openly with established temporal priority before any competitor can claim the same idea. Openness does not weaken the root's position—it strengthens it. A root operating a closed protocol can be replaced by anyone who publishes a better protocol. A root that operates the de facto standard protocol accumulates legitimacy that cannot be copied.
 
-<!-- TODO: translate -->
-Sin embargo, una sola entidad operando el root inicial introduce un riesgo que el diseño técnico por sí solo no puede eliminar: la coacción. Aunque el root no tiene discrecionalidad — solo ejecuta un algoritmo público — la entidad que opera el servidor sí puede ser objeto de presión legal, política o regulatoria. Un gobierno puede ordenar a una fundación que excluya ciertos nodos. Una empresa puede ser adquirida. Un individuo puede ser intimidado. La solución técnica a este riesgo es aplicar desde el día 1 el mismo mecanismo de quórum definido en la sección 4.10.
+However, a single entity operating the initial root introduces a risk that the technical design alone cannot eliminate: coercion. Although the root has no discretion—it only executes a public algorithm—the entity operating the server can be subject to legal, political, or regulatory pressure. A government can order a foundation to exclude certain nodes. A company can be acquired. An individual can be intimidated. The technical solution to this risk is to apply from day one the same quorum mechanism defined in section 4.10.
 
-<!-- TODO: translate -->
-El sistema no arranca con un root único, sino con un conjunto fundador: N entidades independientes — universidades, ONGs, organismos técnicos, administraciones públicas — que firman un acuerdo de génesis y operan cada una su propio nodo root desde el primer día. Cualquier operación sensible requiere el quórum de K de esos N nodos fundadores. Ningún nodo fundador tiene autoridad unilateral. El sistema nace ya siendo policentríco, no lo alcanza después de un período de maduración bajo una autoridad central transitoria.
+The system does not start with a single root but with a founding set: N independent entities—universities, NGOs, technical organizations, public administrations—that sign a genesis agreement and operate their own root node from day one. Any sensitive operation requires the quorum of K of those N founding nodes. No founding node has unilateral authority. The system is born polycentric; it does not become so after a maturation period under a transient central authority.
 
-<!-- TODO: translate -->
-La ventaja adicional es que los nodos fundadores aportan reputación institucional diversa desde el arranque. Un verificador que confíe en cualquiera de ellos tiene acceso inmediato al sistema completo. La resistencia a la coacción es proporcional a la diversidad jurídica y geográfica del conjunto fundador: para silenciar el sistema un atacante necesita comprometer simultáneamente el quórum completo de entidades en múltiples jurisdicciones.
+An additional advantage is that the founding nodes bring diverse institutional reputation from the start. A verifier who trusts any one of them has immediate access to the entire system. Resistance to coercion is proportional to the legal and geographic diversity of the founding set: to silence the system an attacker needs to compromise simultaneously the full quorum of entities across multiple jurisdictions.
 
 
 ## 9.1 Resistance to Embrace, Extend, Extinguish
 
-<!-- TODO: translate -->
-La estrategia conocida como Embrace, Extend, Extinguish consiste en adoptar un estándar abierto, añadir extensiones propietarias que crean dependencia, y finalmente hacer irrelevante el estándar original. Es el patrón que ha eliminado o debilitado múltiples protocolos abiertos a lo largo de la historia de internet.
+The strategy known as Embrace, Extend, Extinguish consists of adopting an open standard, adding proprietary extensions that create dependency, and ultimately making the original standard irrelevant. It is the pattern that has eliminated or weakened multiple open protocols throughout Internet history.
 
-<!-- TODO: translate -->
-Trusteando incorpora resistencia a este patrón por diseño:
+Trusteando incorporates resistance to this pattern by design:
 
-- Embrace — cualquiera puede adoptar el protocolo. Inevitable y deseable.
-- <!-- TODO: translate --> Extend — cualquier extensión propietaria debe declararse bajo trusteando/extensions/ con justificación. Las extensiones no estándar no son interpretadas por otros parsers. La fragmentación es visible y auditable.
-- <!-- TODO: translate --> Extinguish — los datos viven en la URL de cada entidad, no en ningún servicio central. No hay nada que apagar. GPL v3 impide distribuir versiones cerradas. El root no guarda estado — no se puede monopolizar.
-<!-- TODO: translate -->
-La defensa más efectiva contra este patrón es cubrir el espacio funcional tan completamente que cualquier extensión propietaria sea marginal o redundante. El vocabulario extenso de carpetas estándar — features/, payments/, messaging/, hooks/, media/ — no es complejidad innecesaria: es territorio que no se puede usar como cuña.
+- Embrace — anyone can adopt the protocol. Inevitable and desirable.
+- Extend — any proprietary extension must be declared under trusteando/extensions/ with justification. Non-standard extensions are not interpreted by other parsers. Fragmentation is visible and auditable.
+- Extinguish — the data lives under each entity's URL, not in any central service. There is nothing to shut down. GPL v3 prevents distributing closed versions. The root stores no state—it cannot be monopolized.
+
+The most effective defense against this pattern is to cover the functional space so completely that any proprietary extension is marginal or redundant. The extensive vocabulary of standard folders—features/, payments/, messaging/, hooks/, media/—is not unnecessary complexity: it is territory that cannot be used as a wedge.
 
 
-## 9.2 Impacto en servicios intermediarios
+## 9.2 Impact on Intermediary Services
 
-<!-- TODO: translate -->
-Un efecto secundario del protocolo es que la información estructurada de cualquier negocio — horarios, ubicación, características, reputación verificada — pasa a ser pública y accesible directamente desde su URL. Esto permite construir servicios de búsqueda, comparación, y agregación sobre datos abiertos sin depender de intermediarios que actualmente centralizan y monetizan esa información.
+A side effect of the protocol is that the structured information of any business—schedules, location, features, verified reputation—becomes public and directly accessible from its URL. This allows building search, comparison, and aggregation services over open data without relying on intermediaries that currently centralize and monetize that information.
 
-<!-- TODO: translate -->
-El protocolo no elimina esos servicios — simplemente hace que su valor resida en la capa de presentación y experiencia de usuario, no en el acceso exclusivo a los datos. Los hooks y proxies del protocolo garantizan además que el negocio nunca esté atado a ningún proveedor de servicios por razones técnicas — cambiar de proveedor es siempre una decisión de negocio, nunca una migración técnica.
+The protocol does not eliminate those services—it simply shifts their value to the presentation and user experience layer, not to exclusive access to the data. The protocol's hooks and proxies also ensure that the business is never tied to a service provider for technical reasons—changing providers is always a business decision, never a technical migration.
 
 
 ---
 
-# 10. Dos capas — registro y trámite
+# 10. Two layers — registration and process
 
-<!-- TODO: translate -->
-El protocolo distingue explícitamente dos capas que en los sistemas actuales se confunden:
+The protocol explicitly distinguishes two layers that are conflated in current systems:
 
 
-## 10.1 La capa de registro — el Knowledge Graph
+## 10.1 The registration layer — the Knowledge Graph
 
-<!-- TODO: translate -->
-La capa de registro es el grafo permanente de hechos verificados. Lo que es cada nodo y qué relaciones tiene. Cada entrada es firmada por la entidad que la publica, inmutable una vez establecida, y auditable por cualquier tercero sin cooperación de nadie.
+The registration layer is the permanent graph of verified facts. What each node is and what relationships it has. Each entry is signed by the entity that publishes it, immutable once established, and auditable by any third party without anyone's cooperation.
 
 
 ```
-universidad.es/profesores/juan-ruiz          ← hecho verificado, permanente
-estados/españa/ciudadanos/juan-ruiz          ← hecho verificado, permanente
-colegios/medicos/colegiados/juan-ruiz        ← hecho verificado, permanente
+universidad.es/profesores/juan-ruiz          ← verified fact, permanent
+estados/españa/ciudadanos/juan-ruiz          ← verified fact, permanent
+colegios/medicos/colegiados/juan-ruiz        ← verified fact, permanent
 
 ```
 
-<!-- TODO: translate -->
-La redundancia en esta capa es una propiedad positiva — que varios nodos independientes certifiquen lo mismo sobre Juan añade resiliencia. Si dos nodos de alto grado dicen cosas contradictorias, esa inconsistencia es una señal relevante por sí misma.
+Redundancy in this layer is a positive property—multiple independent nodes certifying the same thing about Juan adds resilience. If two high-grade nodes say contradictory things, that inconsistency is itself a meaningful signal.
 
 
-## 10.2 La capa de trámite — los flujos entre nodos
+## 10.2 The process layer — the flows between nodes
 
-<!-- TODO: translate -->
-La capa de trámite son los intercambios de información entre nodos para llegar a establecer hechos en la capa de registro. Son efímeros, operacionales, y no forman parte del grafo permanente. Representan el proceso, no el resultado.
-
-
-```
-Universidad pregunta a estado: ¿juan-ruiz tiene DNI válido?   ← flujo, efímero
-Estado responde: sí, expedido 2015                            ← flujo, efímero
-Universidad añade juan-ruiz a /profesores/since/2026-03-17/   ← entra al grafo
-
-```
-
-<!-- TODO: translate -->
-El protocolo puede definir el formato estándar de estos flujos para facilitar la interoperabilidad entre implementaciones. Pero los flujos no son el grafo — son las aristas operacionales que permiten construirlo. Un verificador externo nunca necesita ver los flujos, solo el resultado en el grafo.
-
-
-## 10.3 Identidad civil como condición mínima
-
-<!-- TODO: translate -->
-Un nodo puede existir técnicamente sin identidad civil verificable. Pero para que un nodo represente a una persona física real, el protocolo requiere al menos una credencial emitida por una entidad con autoridad civil reconocida — un estado, un registro oficial — que vincule ese nodo con una identidad legal.
-
-<!-- TODO: translate -->
-La estructura natural para personas físicas es:
+The process layer consists of the information exchanges between nodes that lead to establishing facts in the registration layer. They are ephemeral, operational, and not part of the permanent graph. They represent the process, not the result.
 
 
 ```
-estados/españa/ciudadanos/juan-ruiz     ← ancla de identidad civil
-→ universidad certifica: juan-ruiz es Profesor
-→ colegio certifica: juan-ruiz está colegiado
-→ empresa certifica: juan-ruiz es empleado
+University asks the state: does juan-ruiz have a valid ID?     ← flow, ephemeral
+State responds: yes, issued 2015                             ← flow, ephemeral
+University adds juan-ruiz to /profesores/since/2026-03-17/   ← enters the graph
 
 ```
 
-<!-- TODO: translate -->
-El nodo de identidad civil es el ancla. Las credenciales son aristas del grafo que apuntan a ese nodo desde distintas entidades. Una persona puede tener múltiples credenciales de múltiples entidades — todas apuntan al mismo nodo de identidad civil.
+The protocol can define the standard format of these flows to facilitate interoperability between implementations. But the flows are not the graph—they are the operational edges that allow building it. An external verifier never needs to see the flows, only the result in the graph.
+
+
+## 10.3 Civil identity as a minimum condition
+
+A node can technically exist without verifiable civil identity. But for a node to represent a real natural person, the protocol requires at least one credential issued by an entity with recognized civil authority—a state, an official registry—that links the node to a legal identity.
+
+The natural structure for natural persons is:
+
+
+```
+estados/españa/ciudadanos/juan-ruiz     ← civil identity anchor
+→ universidad certifies: juan-ruiz is Professor
+→ colegio certifies: juan-ruiz is registered
+→ empresa certifies: juan-ruiz is an employee
+
+```
+
+The civil identity node is the anchor. Credentials are the graph edges pointing to that node from different entities. A person can have multiple credentials from multiple entities—all pointing to the same civil identity node.
 
 
 ---
 
-# 11. Especificación declarativa e implementación funcional
+# 11. Declarative specification and functional implementation
 
-El protocolo distingue dos niveles que son independientes y complementarios:
-
-
-## 11.1 La especificación declarativa — las carpetas
-
-<!-- TODO: translate -->
-Las carpetas definen qué existe y qué significa. Es el contrato público del protocolo — el QUÉ. Cualquiera puede leerlo, verificarlo, y auditarlo sin herramientas especiales ni conocimiento de la implementación interna. La estructura de carpetas es permanente, firmada, y auditable.
+The protocol distinguishes two levels that are independent and complementary:
 
 
-## 11.2 La implementación funcional — la base de datos
+## 11.1 The declarative specification — the folders
 
-<!-- TODO: translate -->
-La base de datos, la API, el adaptador definen cómo se almacena y recupera internamente — el CÓMO. Es un detalle de implementación invisible para el verificador externo. Cualquier implementación funcional es válida si produce resultados indistinguibles de leer las carpetas directamente.
+Folders define what exists and what it means. It is the public contract of the protocol—the WHAT. Anyone can read it, verify it, and audit it without special tools or knowledge of the internal implementation. The folder structure is permanent, signed, and auditable.
+
+
+## 11.2 The functional implementation — the database
+
+The database, the API, the adapter define how it is stored and retrieved internally—the HOW. It is an implementation detail invisible to the external verifier. Any functional implementation is valid if it produces results indistinguishable from reading the folders directly.
 
 
 ```
-# Acceso declarativo — web estática
+# Declarative access — static web
 GET turismo.gob.es/establecimientos/casapepe.es/classification/stars
 → 3
 
-# Acceso funcional — base de datos
+# Functional access — database
 query({ path: 'establecimientos/casapepe.es/classification/stars' })
 → 3
 
-# El resultado es idéntico — el parser no sabe ni le importa cómo se almacena
+# The result is identical — the parser neither knows nor cares how it is stored
 
 ```
 
-<!-- TODO: translate -->
-Es el mismo principio que separa una interfaz de su implementación en programación orientada a objetos. La interfaz es declarativa — define qué existe y qué devuelve. La implementación es funcional — define cómo lo hace internamente.
+It is the same principle that separates an interface from its implementation in object-oriented programming. The interface is declarative—it defines what exists and what it returns. The implementation is functional—it defines how it does so internally.
 
 
-## 11.3 El sistema de adaptadores
+## 11.3 The adapter system
 
-<!-- TODO: translate -->
-Un organismo como un ministerio tiene sus datos en una base de datos existente. No necesita reescribirla para participar en el protocolo — solo necesita publicar una función adaptadora que responde a rutas del protocolo con los mismos valores que tendría una carpeta.
+An agency such as a ministry has its data in an existing database. It does not need to rewrite it to participate in the protocol—it only needs to publish an adapter function that responds to protocol routes with the same values that a folder would have.
 
-El organismo publica en su nodo:
+The agency publishes on its node:
 
 
 ```
 turismo.gob.es/trusteando/adapters/clasificacion_hotelera/
 name           ← 'clasificacion_hotelera'
-description    ← 'Verifica clasificación oficial de establecimientos'
-input_schema   ← qué campos del protocolo necesita como entrada
-output_schema  ← qué campos devuelve al protocolo
+description    ← 'Verifies official establishment classification'
+input_schema   ← which protocol fields it needs as input
+output_schema  ← which fields it returns to the protocol
 version
-cache/ttl      ← con qué frecuencia actualizar
+cache/ttl      ← how often to refresh
 
 ```
 
-<!-- TODO: translate -->
-La función adaptadora tiene una firma estándar:
+The adapter function has a standard signature:
 
 
 ```
 async function query(path) {
-// path: ruta del protocolo
+// path: protocol route
 // 'establecimientos/casapepe.es/classification/stars'
 
-// internamente consulta su base de datos
+// internally query its database
 // SELECT stars FROM establecimientos WHERE url = 'casapepe.es'
 
-// devuelve como si fuera una carpeta
+// return as if it were a folder
 return { value: 3, timestamp: '2024-01-15' }
 }
 
 ```
 
 
-## 11.4 El repositorio central de adaptadores
+## 11.4 The central adapter repository
 
-<!-- TODO: translate -->
-Si el organismo no publica su adaptador, el repositorio central de ConfidenceNode mantiene adaptadores de comunidad para fuentes públicas conocidas. Cuando el organismo publique el suyo, tiene precedencia automáticamente — el parser siempre prefiere el adaptador del propio nodo.
+If the agency does not publish its adapter, the ConfidenceNode central repository maintains community adapters for known public sources. When the agency publishes its own, it automatically takes precedence—the parser always prefers the adapter of the node itself.
 
 
 ```
@@ -1182,106 +1046,89 @@ La ruta funciona igual para todos los parsers existentes
 
 ```
 
-<!-- TODO: translate -->
-La especificación declarativa es el destino. La implementación funcional es el camino. El protocolo funciona en los tres estados sin cambiar nada en los parsers que ya lo usan.
+The declarative specification is the destination. The functional implementation is the path. The protocol works in all three states without changing anything in the parsers that already use it.
 
 
 ---
 
 # 12. Open Questions
 
-<!-- TODO: translate -->
-Las siguientes cuestiones están identificadas pero deliberadamente fuera del alcance de esta versión del protocolo. Se documentan aquí para establecer que son conocidas y para orientar el trabajo futuro.
+The following issues are identified but deliberately out of scope for this version of the protocol. They are documented here to acknowledge their existence and to guide future work.
 
 
-## 12.1 Fallo de una entidad ancla
+## 12.1 Anchor entity failure
 
-<!-- TODO: translate -->
-Si la URL de una entidad desaparece de forma abrupta — quiebra repentina, pérdida del dominio — las credenciales que emitió quedan sin ancla. Para desapariciones ordenadas el protocolo facilita la transferencia de registros a un sucesor. Para desapariciones abruptas la solución es externa al protocolo — institucional o legal. El protocolo hereda ese límite honestamente.
-
-
-## 12.2 Ámbito de las credenciales emitidas
-
-<!-- TODO: translate -->
-El protocolo no impone restricciones sobre qué puede certificar un agente reconocido. Los mecanismos para declarar y verificar el ámbito de competencia de un agente se diseñarán en v0.3.
+If an entity's URL disappears abruptly—sudden bankruptcy, domain loss—the credentials it issued lose their anchor. For orderly disappearances, the protocol facilitates transferring records to a successor. For abrupt disappearances, the solution lies outside the protocol—institutional or legal. The protocol honestly inherits that limitation.
 
 
-## 12.3 Privacidad avanzada mediante pruebas de conocimiento cero
+## 12.2 Scope of issued credentials
 
-<!-- TODO: translate -->
-Una implementación basada en zero-knowledge proofs permitiría demostrar la validez de una credencial sin revelar ningún elemento de la cadena. Esta es una dirección de investigación para versiones futuras.
+The protocol does not impose restrictions on what a recognized agent can certify. Mechanisms to declare and verify an agent's scope of competence will be designed in v0.3.
 
 
-## 12.4 Standard Format for the Transaction Layer
+## 12.3 Advanced privacy via zero-knowledge proofs
 
-<!-- TODO: translate -->
-El protocolo define la capa de registro pero no el formato de los flujos entre nodos en la capa de trámite. Un estándar de interoperabilidad para estos flujos se abordará en v0.2.
+A zero-knowledge proof–based implementation would allow demonstrating the validity of a credential without revealing any element of the chain. This is a research direction for future versions.
+
+
+## 12.4 Standard format for the transaction layer
+
+The protocol defines the registration layer but not the format of the inter-node flows in the transaction layer. An interoperability standard for those flows will be addressed in v0.2.
 
 
 ## 12.5 Compatibility Certification System
 
-<!-- TODO: translate -->
-Una herramienta de testing que evalúa si un nodo usa campos estándar para funciones estándar, o ha inventado equivalentes sin justificación. Los nodos pueden declarar extensiones justificadas bajo trusteando/extensions/ con una rationale y un organismo certificador. Un sistema de organismos de valoración y resolución de disputas sobre extensiones está previsto para v0.4.
+A testing tool that evaluates whether a node uses standard fields for standard functions or has invented equivalents without justification. Nodes can declare justified extensions under trusteando/extensions/ with a rationale and a certifying body. A system of evaluation bodies and dispute resolution over extensions is planned for v0.4.
 
 
 ## 12.6 Adapter Sandboxing
 
-<!-- TODO: translate -->
-Los adaptadores ejecutan código de terceros. El protocolo debe especificar el entorno de ejecución restringido — sin acceso a red salvo a la URL del organismo, sin efectos secundarios, con timeout máximo. Web Workers y Content Security Policy son la base técnica. La especificación formal se abordará en v0.2.
+Adapters execute third-party code. The protocol must specify a restricted execution environment—no network access except to the agency’s URL, no side effects, with a maximum timeout. Web Workers and Content Security Policy are the technical basis. The formal specification will be addressed in v0.2.
 
 
 ## 12.7 Graph Relationship Privacy
 
-<!-- TODO: translate -->
-La divulgación selectiva definida en la sección 6 protege el contenido de las credenciales, pero la existencia de la arista en el grafo es pública por defecto: que universidad.es/profesores/juan-ruiz sea una URL pública revela que Juan tiene una relación con esa universidad. Este problema está resuelto mediante la carpeta private/ definida en la sección 2.11. Publicar una entrada bajo universidad.es/personal/profesores/private/ oculta la identidad del nodo — un verificador sabe que algo existe ahí sin saber qué. Para acceder debe elevar una consulta al agente que controla la carpeta. La existencia de la arista puede ocultarse, no solo su contenido. Las pruebas de conocimiento cero (sección 12.3) complementarán este mecanismo en versiones futuras para casos donde ni siquiera la existencia de private/ deba ser visible.
+Selective disclosure defined in section 6 protects the content of credentials, but the existence of the edge in the graph is public by default: that universidad.es/profesores/juan-ruiz is a public URL reveals that Juan has a relationship with that university. This problem is solved via the private/ folder defined in section 2.11. Publishing an entry under universidad.es/personal/profesores/private/ hides the node’s identity—a verifier knows something exists there without knowing what. To access it, they must raise a query to the agent that controls the folder. The existence of the edge can be hidden, not just its content. Zero-knowledge proofs (section 12.3) will complement this mechanism in future versions for cases where even the existence of private/ should not be visible.
 
 
 ## 12.8 Legal Framework for Dispute Resolution
 
-<!-- TODO: translate -->
-El Apéndice B define un mecanismo de disputas con evidencia criptográfica y costes crecientes, pero no especifica cómo se vinculan las resoluciones del root o de los árbitros con el sistema judicial real. El hash_disputa es una prueba de identidad ante el árbitro, pero el árbitro necesita un marco procesal para tomar decisiones vinculantes sobre el significado de una credencial o la legitimidad de una relación. Cómo se integra Trusteando con marcos jurísdicos concretos — más allá del uso de eIDAS para la firma — es una cuestión abierta que requerirá colaboración con expertos legales en cada jurisdicción.
+Appendix B defines a dispute mechanism with cryptographic evidence and increasing costs, but it does not specify how the resolutions of the root or arbitrators are linked to the real judicial system. The hash_disputa is proof of identity before the arbitrator, but the arbitrator needs a procedural framework to take binding decisions about the meaning of a credential or the legitimacy of a relationship. How Trusteando integrates with concrete legal frameworks—beyond using eIDAS for signature—is an open question that will require collaboration with legal experts in each jurisdiction.
 
 
 ## 12.9 Semantic Vocabulary Fragmentation
 
-<!-- TODO: translate -->
-La gramática de rutas define la sintaxis pero no el vocabulario. La apertura del vocabulario de operadores y propiedades — cualquier término en lenguaje natural es válido — es una fortaleza expresiva pero puede generar fragmentación semántica: diferentes comunidades o dominios podrían usar términos distintos para el mismo concepto, reduciendo la interoperabilidad que el protocolo promete. Un nodo que use [en] y otro que use [located-in] para la misma relación geográfica no son automáticamente interoperables. La solución a largo plazo pasa por ontologías de dominio o registros de términos consensuados por comunidad, algo que el protocolo facilita pero no especifica. El vocabulario reservado del Apéndice A es el núcleo común; su extensión coordinada es una cuestión de gobernanza más que de especificación técnica. Una dirección concreta es publicar ontologías por dominio en repositorios distribuidos alojados en múltiples roots, donde comunidades de práctica consensuan los términos estándar para su sector. Las herramientas de análisis pueden advertir al operador de un nodo cuando usa un término que diverge del vocabulario mayoritario en su dominio, fomentando la convergencia sin imposición. La especificación formal de este mecanismo se abordará en versiones futuras.
+The route grammar defines the syntax but not the vocabulary. Opening the vocabulary of operators and properties—any natural-language term is valid—is an expressive strength but can generate semantic fragmentation: different communities or domains might use different terms for the same concept, reducing the interoperability the protocol promises. A node that uses [en] and another that uses [located-in] for the same geographic relation are not automatically interoperable. The long-term solution lies in domain ontologies or term registries consensused by the community, something the protocol facilitates but does not specify. The reserved vocabulary in Appendix A is the common core; its coordinated extension is a governance matter more than a technical specification. A concrete direction is to publish domain ontologies in distributed repositories hosted on multiple roots, where communities of practice agree on the standard terms for their sector. Analytical tools can warn a node operator when they use a term that diverges from the majority vocabulary in their domain, encouraging convergence without imposition. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.10 Name Discovery and Registry
 
-<!-- TODO: translate -->
-El protocolo identifica entidades por hash de URL, no por nombre. La asociación entre un nombre legible — "Universidad de Málaga" — y su URL uma.es es un paso externo al protocolo que en la versión actual queda sin especificar. Un nodo puede publicar su nombre oficial como propiedad: [nombre-oficial "Universidad de Málaga"]/[indicates]/[source uma.es]. Roots y nodos de alta reputación pueden atestiguar esa asociación publicando su propia versión del hecho, creando un registro de nombres descentralizado donde la confianza en la asociación es una cuestión de grado resoluble mediante el mecanismo de quórum del protocolo. La especificación de este mecanismo se abordará en versiones futuras.
+The protocol identifies entities by URL hash, not by name. Associating a human-readable name—“Universidad de Málaga”—with its URL uma.es is an external step that is unspecified in this version. A node can publish its official name as a property: [nombre-oficial "Universidad de Málaga"]/[indicates]/[source uma.es]. Roots and high-reputation nodes can attest that association by publishing their own version of the fact, creating a decentralized name registry where trust in the association is a matter of degree resolvable through the protocol’s quorum mechanism. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.11 Active Authentication with Key Rotation
 
-<!-- TODO: translate -->
-El protocolo define la clave de emergencia para migraciones, pero no especifica un mecanismo de autenticación activa interactiva. Una extensión natural es la rotación atómica: el wallet genera una nueva clave y la publica en la web antes de revelar la antigua al verificador. El flujo es: (1) wallet genera clave_2 y publica hash_publico_2, (2) wallet espera confirmación de que hash_publico_2 está activo, (3) wallet revela clave_1 al verificador, (4) verificador comprueba hash(entity_id, clave_1) == hash_publico_1. Cada autenticación consume la clave revelada, convirtiendo el sistema en un mecanismo de contraseñas de un solo uso criptográficamente anclado en la identidad del nodo. La especificación formal de este mecanismo se abordará en versiones futuras.
+The protocol defines the emergency key for migrations but does not specify an interactive active authentication mechanism. A natural extension is atomic rotation: the wallet generates a new key and publishes it on the web before revealing the old one to the verifier. The flow is: (1) wallet generates clave_2 and publishes hash_publico_2, (2) wallet waits for confirmation that hash_publico_2 is active, (3) wallet reveals clave_1 to the verifier, (4) verifier checks hash(entity_id, clave_1) == hash_publico_1. Each authentication consumes the revealed key, turning the system into a one-time password mechanism cryptographically anchored in the node's identity. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.12 Metadata Leakage in Path Structure
 
-<!-- TODO: translate -->
-La carpeta private/ oculta el contenido de una relación pero no necesariamente su existencia ni el tipo de relación. Una ruta como empresa.com/trusteando/fusiones-y-adquisiciones/private/ revela información sensible aunque el contenido esté protegido — el nombre de la carpeta es ya una filtración. La solución es usar nombres opacos para carpetas sensibles: una carpeta cuyo nombre es un identificador no descriptivo no revela nada sobre su contenido. El protocolo permite esto sin ninguna extensión — el propietario elige el nombre de sus carpetas. La convención 1234/[folder-has-private-name]/ (pendiente de especificación formal) declara explícitamente esta intención para que las herramientas la traten correctamente.
+The private/ folder hides the content of a relationship but not necessarily its existence or type. A path like empresa.com/trusteando/fusiones-y-adquisiciones/private/ reveals sensitive information even if the content is protected—the folder name already leaks something. The solution is to use opaque names for sensitive folders: a folder whose name is a non-descriptive identifier reveals nothing about its content. The protocol allows this without any extension—the owner chooses the name of their folders. The convention 1234/[folder-has-private-name]/ (pending formal specification) explicitly declares this intention so tools can treat it properly.
 
 
 ## 12.13 Latency in Critical Security Revocation
 
-<!-- TODO: translate -->
-El modelo de réplicas observadoras con umbral de histéresis (sección 4.3) introduce una ventana de inconsistencia entre el momento en que una credencial es revocada y el momento en que todas las réplicas reflejan esa revocación. Para casos de uso de baja criticidad esta latencia es aceptable. Para control de acceso en tiempo real — acceso físico a instalaciones, autorizaciones de sistemas críticos — puede ser peligrosa. Una dirección de solución es un canal de revocación de alta prioridad: las réplicas sincronizan las revocaciones publicadas en registry/compromised/ con prioridad máxima sobre cualquier otra actualización, reduciendo la ventana de inconsistencia de minutos a segundos. La especificación formal de este mecanismo se abordará en versiones futuras.
+The observer replica model with a hysteresis threshold (section 4.3) introduces a window of inconsistency between the moment a credential is revoked and the moment all replicas reflect that revocation. For low-criticality use cases this latency is acceptable. For real-time access control—physical access to facilities, authorizations for critical systems—it can be dangerous. A solution direction is a high-priority revocation channel: replicas synchronize revocations published under registry/compromised/ with maximum priority over any other update, reducing the inconsistency window from minutes to seconds. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.14 Social Identity Recovery
 
-<!-- TODO: translate -->
-El mecanismo de custodia de secretos mediante wallets colaboradores (sección F.1) aborda la pérdida de claves para el autor del protocolo, pero no especifica un mecanismo genérico para cualquier entidad. Sin recuperación social, la pérdida de la clave de emergencia de un nodo es irreversible: su historial queda huérfano permanentemente. La dirección natural es el Secreto Compartido de Shamir: fragmentar la clave entre N guardianes de confianza de forma que cualquier subconjunto de M de ellos pueda reconstruirla. Los guardianes son entidades del propio grafo — universidad, empleador, registro oficial — nombradas por el nodo usando la convención [agent role]. La especificación formal de este mecanismo se abordará en versiones futuras.
+The secret custody mechanism via collaborating wallets (section F.1) addresses key loss for the protocol author but does not specify a generic mechanism for any entity. Without social recovery, a node's emergency key loss is irreversible: its history remains orphaned permanently. The natural direction is Shamir's Secret Sharing: fragment the key among N trusted guardians so that any subset of M of them can reconstruct it. The guardians are entities from the graph itself—university, employer, official registry—named by the node using the [agent role] convention. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.15 Verification Load in Deep Chains
 
-<!-- TODO: translate -->
-Verificar un hecho al final de una cadena larga — root, universidad, facultad, departamento, profesor — requiere múltiples peticiones HTTP y el procesamiento de varios HMACs y firmas ECDSA en secuencia. Esto penaliza a dispositivos con recursos limitados o conexiones lentas. La dirección de solución es la agregación de pruebas mediante zero-knowledge proofs (sección 12.3): una única prueba ZK que demuestra la validez de toda la cadena sin revelar los pasos intermedios reduce la carga de verificación a una única operación, independientemente de la profundidad de la cadena. Una solución más inmediata y sin ZK es que cada nodo publique una prueba de Merkle precomputada de su posición en la cadena, permitiendo verificación local sin consultas adicionales.
+Verifying a fact at the end of a long chain—root, university, faculty, department, professor—requires multiple HTTP requests and processing several HMACs and ECDSA signatures in sequence. This penalizes resource-constrained devices or slow connections. The solution direction is proof aggregation via zero-knowledge proofs (section 12.3): a single ZK proof demonstrating the validity of the entire chain without revealing intermediate steps reduces the verification load to a single operation, regardless of chain depth. A more immediate solution without ZK is for each node to publish a precomputed Merkle proof of its position in the chain, allowing local verification without additional queries.
 
 
 
@@ -1289,33 +1136,27 @@ Verificar un hecho al final de una cadena larga — root, universidad, facultad,
 
 # 13. Roadmap
 
-<!-- TODO: translate -->
-Las versiones futuras del protocolo se guían por los problemas que la práctica de implementación revele como más urgentes. La hoja de ruta siguiente refleja el estado actual de las prioridades conocidas — no es un compromiso de fechas sino una declaración de intención.
+Future versions of the protocol are guided by the problems that implementation practice reveals as most urgent. The following roadmap reflects the current state of known priorities—it is not a commitment of dates but a declaration of intent.
 
-v0.1 — actual
+v0.1 — current
 
-<!-- TODO: translate -->
-Fundamentos del protocolo: URL como ancla de identidad, separación autenticidad/autoría, clave de emergencia y portabilidad, vocabulario reservado, capa de negocio, dos niveles de existencia, resistencia a Embrace–Extend–Extinguish.
+Protocol fundamentals: URL as identity anchor, separation of authenticity/authorship, emergency key and portability, reserved vocabulary, business layer, two levels of existence, resistance to Embrace–Extend–Extinguish.
 
 v0.2
 
-<!-- TODO: translate -->
-Extensiones semánticas: gramática de rutas con operadores relacionales entre corchetes, convención plan/execution para procesos activos. Casos de uso ampliados: coordinación de emergencias multi-agencia, interoperabilidad administrativa. Escalabilidad HMAC: verificación por lotes mediante árboles de Merkle. Especificación formal de sandboxing de adaptadores y estándar de interoperabilidad para la capa de trámite. Wallet de referencia: agente de usuario básico que gestiona claves de forma segura, presenta credenciales gráficamente y permite compartir y verificar credenciales sin conocimientos técnicos. El wallet no es parte del protocolo — es la capa de aplicación que lo hace accesible al usuario final, análoga a un navegador web respecto a HTTP.
+Semantic extensions: route grammar with relational operators in brackets, plan/execution convention for active processes. Expanded use cases: multi-agency emergency coordination, administrative interoperability. HMAC scalability: batch verification via Merkle trees. Formal specification of adapter sandboxing and an interoperability standard for the transaction layer. Reference wallet: a basic user agent that manages keys securely, displays credentials graphically, and allows sharing and verifying credentials without technical knowledge. The wallet is not part of the protocol—it is the application layer that makes it accessible to the end user, analogous to a web browser for HTTP.
 
 v0.3
 
-<!-- TODO: translate -->
-Mecanismos de ámbito de credenciales: declaración y verificación del ámbito de competencia de un agente. Privacidad avanzada mediante pruebas de conocimiento cero para verificación sin interacción en línea. Implementaciones de referencia en al menos dos lenguajes.
+Credential scope mechanisms: declaration and verification of an agent's competence domain. Advanced privacy via zero-knowledge proofs for verification without online interaction. Reference implementations in at least two languages.
 
 v0.4
 
-<!-- TODO: translate -->
-Sistema de organismos de valoración y resolución de disputas sobre extensiones. Mecanismo formal de rotación o sustitución del root por consenso de nodos de alto grado. Hoja de ruta hacia criptografía resistente a computación cuántica.
+System of evaluation bodies and dispute resolution over extensions. Formal mechanism for root rotation or replacement by consensus of high-grade nodes. Roadmap toward quantum-resistant cryptography.
 
 v1.0
 
-<!-- TODO: translate -->
-Protocolo estable. Ecosistema de herramientas: validador público, generador asistido, tutoriales interactivos. Red con suficientes nodos de alto grado para operar de forma policéntrica sin dependencia del root en el uso cotidiano.
+Stable protocol. Ecosystem of tools: public validator, assisted generator, interactive tutorials. Network with enough high-grade nodes to operate polycentrically without dependence on the root in everyday use.
 
 
 
@@ -1326,68 +1167,57 @@ Protocolo estable. Ecosistema de herramientas: validador público, generador asi
 
 ## Why URLs and not DIDs or W3C Verifiable Credentials?
 
-<!-- TODO: translate -->
-Los DIDs (Decentralised Identifiers) del W3C requieren infraestructura adicional — registros blockchain, métodos DID específicos — y no están anclados en ninguna presencia real preexistente. Las W3C Verifiable Credentials definen el formato del documento pero no el sistema de confianza ni cómo se establece la autoridad del emisor. Trusteando usa URLs porque las entidades ya existen con URLs propias — no hace falta crear ninguna infraestructura nueva para identificarlas. La URL es la identidad, no un puntero a ella.
+The W3C DIDs (Decentralised Identifiers) require additional infrastructure—blockchain registries, specific DID methods—and are not anchored in any preexisting real presence. W3C Verifiable Credentials define the document format but not the trust system nor how the issuer's authority is established. Trusteando uses URLs because the entities already exist with their own URLs—you do not need to create new infrastructure to identify them. The URL is the identity, not a pointer to it.
 
 
 ## What happens if an entity loses its domain?
 
-<!-- TODO: translate -->
-El protocolo tiene dos niveles de anclaje. En el nivel básico, la identidad está anclada en la URL y su pérdida abrupta es un riesgo real, mitigable con mirrors y dominios alternativos. En el nivel avanzado (sección 4.10), la entidad puede desacoplar completamente su identidad de la URL mediante secretos autónomos generados localmente. En ese caso la URL es solo el lugar de publicación: la identidad sobrevive a cambios de dominio, caídas de servidor y bloqueo DNS. Las dos modalidades son compatibles y vinculables mediante old_identities/.
+The protocol has two anchoring levels. At the basic level, identity is anchored in the URL, and its abrupt loss is a real risk, mitigable with mirrors and alternate domains. At the advanced level (section 4.10), the entity can fully decouple its identity from the URL via autonomously generated secrets. In that case the URL is only the publication place: the identity survives domain changes, server outages, and DNS blocking. The two modes are compatible and linkable via old_identities/.
 
 
 ## Can anyone create a node?
 
-<!-- TODO: translate -->
-Sí. Cualquier entidad con una URL puede publicar su espacio de identidad siguiendo el protocolo sin permiso de nadie. Esto crea un nodo en nivel 1 — identidad declarada, verificable por contexto. Para alcanzar nivel 2 — identidad reconocida con verificabilidad criptográfica por terceros desconocidos — hace falta el reconocimiento del root o de otro nodo de confianza suficiente.
+Yes. Any entity with a URL can publish its identity space following the protocol without anyone's permission. This creates a level-1 node—declared identity, verifiable by context. To reach level 2—recognized identity with cryptographic verifiability by unknown third parties—the recognition of the root or another sufficiently trusted node is required.
 
 
 ## What is the difference between this and PGP Web of Trust?
 
-<!-- TODO: translate -->
-PGP Web of Trust es una red de firmas entre personas donde la confianza se propaga por conocidos. No tiene estructura jerárquica, no está anclado en URLs públicas, no tiene dimensión temporal verificable, y no distingue entre tipos de relación. Trusteando es un Knowledge Graph estructurado donde las entidades son nodos con URLs propias, las relaciones tienen semántica explícita expresada en la estructura de carpetas, y el historial completo es auditable. PGP prueba que alguien conoce a alguien. Trusteando prueba qué es cada entidad y desde cuándo.
+PGP Web of Trust is a network of signatures among people where trust propagates through acquaintances. It lacks hierarchical structure, is not anchored in public URLs, lacks a verifiable temporal dimension, and does not distinguish between types of relationships. Trusteando is a structured Knowledge Graph where entities are nodes with their own URLs, relationships have explicit semantics expressed in the folder structure, and the full history is auditable. PGP proves that someone knows someone else. Trusteando proves what each entity is and since when.
 
 
 ## Is the Trusteando root a centralised point of control?
 
-<!-- TODO: translate -->
-El root es el nodo de arranque con mayor reputación inicial. No guarda estado — solo ejecuta verificaciones algorítmicas sobre información que las propias entidades publican. Si el root cae, cualquier nodo de alto grado puede realizar las mismas verificaciones porque el algoritmo es público. Con el tiempo las entidades con reputación suficiente se convierten en raíces de confianza independientes. El root es necesario para arrancar el sistema — no para que funcione una vez establecido.
+The root is the bootstrap node with the highest initial reputation. It stores no state—it only executes algorithmic verifications over information that the entities themselves publish. If the root goes down, any high-grade node can perform the same verifications because the algorithm is public. Over time, entities with sufficient reputation become independent trust roots. The root is necessary to start the system—not for it to operate once established.
 
 
 ## How does Trusteando relate to eIDAS?
 
-<!-- TODO: translate -->
-eIDAS es el reglamento europeo de identidad digital — define los requisitos legales para que una firma electrónica tenga validez jurídica. Trusteando establece la evidencia criptográfica; eIDAS le da fuerza legal en jurisdicciones europeas. Son complementarios. Un nodo Trusteando respaldado por una entidad reconocida bajo eIDAS hereda su validez legal automáticamente.
+eIDAS is the European regulation for digital identity—it defines the legal requirements for an electronic signature to have legal validity. Trusteando establishes the cryptographic evidence; eIDAS gives it legal force in European jurisdictions. They are complementary. A Trusteando node backed by an entity recognized under eIDAS automatically inherits its legal validity.
 
 
 ## Does verification require consulting the parent every time? Does it scale?
 
-<!-- TODO: translate -->
-El diseño base requiere consultar al superior para verificar el HMAC, pero hay tres mecanismos de escalabilidad. Caché firmada: el superior publica listados firmados de sus miembros con TTL, permitiendo verificaciones offline durante ese período. Árboles de Merkle: el superior publica una raíz de Merkle de todos los HMACs válidos; el miembro presenta una prueba junto con su credencial, permitiendo verificación sin consulta online. Múltiples roots y quórum: para credenciales de alto valor se puede requerir validación por un quórum de roots independientes (sección 4.10.4), distribuyendo la carga. Los tres mecanismos están descritos en la sección 4.3. La operación de verificación subyacente en todos ellos es la función verify_child_authorship de la clase TrusteandoNode (sección 4.11).
+The base design requires consulting the superior to verify the HMAC, but there are three scalability mechanisms. Signed cache: the superior publishes signed listings of its members with TTL, allowing offline verification during that period. Merkle trees: the superior publishes a Merkle root of all valid HMACs; the member presents a proof with its credential, enabling verification without online queries. Multiple roots and quorum: for high-value credentials, validation can require a quorum of independent roots (section 4.10.4), distributing the load. All three mechanisms are described in section 4.3. The underlying verification operation in all of them is the verify_child_authorship function of the TrusteandoNode class (section 4.11).
 
 
 ## A small business cannot manage keys and folders. How is adoption handled?
 
-<!-- TODO: translate -->
-Hay tres caminos de adopción. Hosting gestionado: igual que WordPress, el protocolo es libre pero cualquiera puede contratar a alguien para que gestione su nodo (sección 8.2). Migración asistida por LLM: el usuario describe dónde tiene sus datos y un modelo de lenguaje genera automáticamente la estructura completa; el humano solo revisa y valida. Adaptadores: organismos con bases de datos existentes pueden publicar un adaptador que traduzca consultas del protocolo a su sistema interno sin migrar datos (sección 11). En los tres casos la complejidad técnica queda fuera del alcance del usuario final.
+There are three adoption paths. Managed hosting: just like WordPress, the protocol is free but anyone can hire someone to manage their node (section 8.2). LLM-assisted migration: the user describes where their data resides and a language model automatically generates the complete structure; the human only reviews and validates it. Adapters: agencies with existing databases can publish an adapter that translates protocol queries to their internal system without migrating data (section 11). In all three cases, the technical complexity stays out of the end user’s reach.
 
 
 ## Isn't everything public? What about privacy?
 
-<!-- TODO: translate -->
-El protocolo ofrece tres niveles de privacidad selectiva (sección 6). Hash del mensaje: solo se publica el hash, no el contenido; se puede verificar integridad sin revelar el mensaje. Divulgación selectiva: el titular puede elegir revelar solo el resultado, solo el emisor, o la cadena completa según el contexto. Carpetas private/: información que existe pero no se expone por defecto, accesible solo mediante grantReveal(). La privacidad no es una capa añadida — está diseñada dentro de la estructura desde el principio.
+The protocol offers three levels of selective privacy (section 6). Message hash: only the hash is published, not the content; you can verify integrity without revealing the message. Selective disclosure: the holder can choose to reveal only the result, only the issuer, or the full chain depending on the context. private/ folders: information exists but is not exposed by default, accessible only via grantReveal(). Privacy is not an add-on layer—it is designed into the structure from the start.
 
 
 ## What if a root is compromised? Can it forge identities?
 
-<!-- TODO: translate -->
-Un root comprometido puede falsear las claves que genera para nuevas entidades, pero no puede falsear el pasado: las credenciales ya emitidas están firmadas por las entidades, no por el root; las relaciones ya establecidas están publicadas en los nodos, no en el root; y el quórum de múltiples roots hace que comprometer uno solo no sea suficiente para operaciones que requieren consenso. Además, un root comprometido pasa a state brokenado — término del vocabulario reservado del protocolo — visible para todos los participantes, y sus firmas dejan de contar para el quórum.
+A compromised root can falsify the keys it generates for new entities but cannot falsify the past: already issued credentials are signed by the entities, not the root; already established relationships are published at the nodes, not at the root; and the quorum of multiple roots makes compromising just one insufficient for consensus-required operations. Moreover, a compromised root enters state brokenado—a term from the protocol’s reserved vocabulary—visible to all participants, and its signatures no longer count toward the quorum.
 
 
 ## The protocol seems very ambitious. Can it work in practice?
 
-<!-- TODO: translate -->
-Trusteando no intenta reemplazar todos los sistemas de identidad existentes de golpe. Su estrategia es orgánica y por capas. Nivel 1 declarado: cualquier entidad puede publicar su espacio sin permiso, útil como prueba de concepto o para comunidades cerradas. Nivel 2 reconocido: entidades que necesitan verificabilidad por terceros desconocidos solicitan reconocimiento a roots. Adopción sectorial: el protocolo puede empezar en nichos concretos — restauración, emergencias, universidades — y crecer desde ahí. El protocolo no necesita conquistar el mundo para ser útil. Basta con que resuelva problemas reales en dominios concretos, y eso ya es posible hoy con la especificación actual.
+Trusteando does not aim to replace all existing identity systems overnight. Its strategy is organic and layered. Level 1 declared: any entity can publish its space without permission, useful as proof of concept or for closed communities. Level 2 recognized: entities that need verifiability by unknown third parties request recognition from roots. Sectoral adoption: the protocol can start in concrete niches—hospitality, emergencies, universities—and grow from there. The protocol does not need to conquer the world to be useful. It is enough to solve real problems in concrete domains, and that is already possible today with the current specification.
 
 
 
@@ -1395,18 +1225,16 @@ Trusteando no intenta reemplazar todos los sistemas de identidad existentes de g
 
 # Appendix A — Reserved Protocol Vocabulary
 
-<!-- TODO: translate -->
-Las siguientes carpetas tienen semántica específica en el protocolo. Cualquier implementación debe respetar estos nombres y su significado. La lista es extensible en versiones futuras — ningún nombre reservado puede ser redefinido por una implementación particular.
+The following folders have specific semantics in the protocol. Any implementation must respect these names and their meanings. The list is extensible in future versions—no reserved name can be redefined by a particular implementation.
 
 
 ## A.0 The Root Folder — trusteando/
 
-<!-- TODO: translate -->
-Todo lo que el protocolo necesita vive bajo una única carpeta raíz: trusteando/. Es la única carpeta que una entidad necesita crear, mover, o subir para participar en el protocolo. Si la entidad cambia de hosting manteniendo el mismo dominio, mueve la carpeta trusteando/ al nuevo servidor y todo sigue funcionando — el entity_id no cambia porque se calcula sobre el dominio normalizado, no sobre la infraestructura.
+Everything the protocol needs lives under a single root folder: trusteando/. It is the only folder an entity needs to create, move, or upload to participate in the protocol. If the entity changes hosting while keeping the same domain, it moves the trusteando/ folder to the new server and everything keeps working—the entity_id does not change because it is calculated over the normalized domain, not the infrastructure.
 
 
 ```
-casapepe.es/trusteando/     ← todo el protocolo vive aquí
+casapepe.es/trusteando/     ← the entire protocol lives here
 identity/
 registry/
 transactions/
@@ -1416,113 +1244,106 @@ transactions/
 
 ## A.1 URL Normalisation for entity_id Calculation
 
-<!-- TODO: translate -->
-El entity_id se calcula externamente por cualquier verificador — la entidad no puede declararlo ni influir en él. Esto es una consecuencia directa de la regla de oro: la estructura declara información pero no puede imponer campos del protocolo.
+The entity_id is calculated externally by any verifier—the entity cannot declare or influence it. This is a direct consequence of the golden rule: the structure declares information but cannot impose protocol fields.
 
-<!-- TODO: translate -->
-La normalización es mínima y solo elimina campos técnicos del esquema URL — nunca paths, nunca componentes semánticos. Esto es crítico para evitar colisiones: si se eliminaran paths, dos entidades distintas podrían obtener el mismo entity_id.
+Normalization is minimal and only removes technical fields from the URL scheme—never paths, never semantic components. This is critical to avoid collisions: if paths were removed, two different entities could end up with the same entity_id.
 
 
 ```
 normalizar(url):
-1. minúsculas
-2. eliminar prefijo www
-3. eliminar puerto estándar (443 para https, 80 para http)
-4. eliminar trailing slash
-5. eliminar query params (?...)
-6. eliminar fragmentos (#...)
-7. conservar el path completo  ← nunca eliminar paths
+1. lowercase
+2. remove www prefix
+3. drop standard port (443 for https, 80 for http)
+4. remove trailing slash
+5. remove query params (?...)
+6. remove fragments (#...)
+7. keep the full path  ← never drop paths
 
 entity_id = SHA-256(normalizar(url))
 
-Ejemplos:
+Examples:
 https://WWW.CasaPepe.ES:443/  →  https://casapepe.es
 https://casapepe.es/?ref=google  →  https://casapepe.es
 https://casapepe.es/#inicio  →  https://casapepe.es
-https://banco.es/santander/  →  https://banco.es/santander
-https://banco.es/mio/  →  https://banco.es/mio
+https://casapepe.es/santander/  →  https://casapepe.es/santander
+https://casapepe.es/mio/  →  https://casapepe.es/mio
 
 ```
 
-<!-- TODO: translate -->
-Edge case documentado: si la normalización eliminara paths, 'banco.es/santander/' y 'banco.es/mio/santander/' podrían colapsar al mismo entity_id. La regla de conservar paths completos elimina esta posibilidad. Dos entidades con distinto path son siempre entidades distintas.
+Documented edge case: if normalization removed paths, 'banco.es/santander/' and 'banco.es/mio/santander/' could collapse into the same entity_id. The rule of keeping full paths eliminates that possibility. Two entities with different paths are always distinct entities.
 
 
 ## A.2 trusteando/identity/
 
-<!-- TODO: translate -->
-Contiene todo lo que el nodo declara sobre sí mismo:
+Contains everything the node declares about itself:
 
 
 ```
 trusteando/identity/
-public_key          ← clave pública del nodo (base64, curva P-256)
+public_key          ← node's public key (base64, P-256 curve)
 hash_migracion      ← hash(entity_id, clave_emergencia_1)
-usado para migración voluntaria a nuevo superior
-se renueva tras cada migración completada
+used for voluntary migration to a new superior
+renewed after each completed migration
 hash_disputa        ← hash(entity_id, clave_emergencia_2)
-usado para resolución de disputas
-nunca se revela en migraciones normales
+used for dispute resolution
+never revealed during normal migrations
 entity_type         ← universidad | empresa | persona | servidor | ...
-scope               ← ámbito declarado de las credenciales que emite
-root_certificate    ← certificado firmado por el root (si existe)
-dispute_level       ← nivel máximo al que este nodo puede elevar disputas
+scope               ← declared scope of credentials it issues
+root_certificate    ← certificate signed by the root (if any)
+dispute_level       ← maximum level to which this node can escalate disputes
 
 ```
 
 
 ## A.3 trusteando/registry/
 
-Contiene todo lo que el nodo certifica sobre otros:
+Contains everything the node certifies about others:
 
 
 ```
 trusteando/registry/
-old_identities/     ← cadena histórica de identidades anteriores
-mantenida por el superior receptor, no por el nodo
-contiene la cadena completa, no solo el vínculo inmediato
-since/              ← fechas de incorporación de nodos reconocidos
-until/              ← fechas de baja de nodos reconocidos
-externals/          ← vínculos a sistemas externos no controlados
+old_identities/     ← historical chain of previous identities
+maintained by the receiving superior, not by the node
+contains the complete chain, not just the immediate link
+since/              ← incorporation dates of recognized nodes
+until/              ← departure dates of recognized nodes
+externals/          ← links to uncontrolled external systems
 
 ```
 
 
 ## A.4 The externals/ Folder
 
-<!-- TODO: translate -->
-Cualquier carpeta bajo externals/ declara que el nodo vincula algo que no controla. La semántica es opuesta al resto de carpetas — fuera de externals/, controlar la URL implica controlar el contenido. Dentro de externals/, el nodo solo garantiza la autenticidad del vínculo, no el contenido del destino.
+Any folder under externals/ declares that the node links to something it does not control. The semantics are opposite to the rest of the folders—outside externals/, controlling the URL implies controlling the content. Inside externals/, the node only guarantees the authenticity of the link, not the destination's content.
 
 
 ## A.5 The since/ and until/ Convention
 
-<!-- TODO: translate -->
-Las fechas de vigencia de una credencial se expresan como subcarpetas con formato ISO 8601 (YYYY-MM-DD). La presencia en since/ sin entrada correspondiente en until/ indica que la credencial sigue vigente. Ambas carpetas están bajo control del superior, nunca del nodo certificado. La convención se extiende con dos variantes adicionales. from/ indica una condición de activación futura cuyo momento exacto no es una fecha conocida sino un evento: from/[time secure-wallet-is-ready]/ activa la carpeta cuando el wallet esté listo, no en una fecha fija. calculate/maximum/ y calculate/minimum/ son condiciones compuestas: maximum requiere que todas las subcarpetas estén presentes (AND lógico), minimum requiere que al menos una lo esté (OR lógico). Estas convenciones son especialmente útiles para expresar condiciones de lanzamiento y activación condicional de roles.
+Credential validity dates are expressed as subfolders with ISO 8601 format (YYYY-MM-DD). Presence in since/ without a corresponding entry in until/ indicates that the credential remains valid. Both folders are under the superior's control, never the certified node's. The convention extends with two additional variants. from/ indicates a future activation condition whose exact moment is not a known date but an event: from/[time secure-wallet-is-ready]/ activates the folder when the wallet is ready, not on a fixed date. calculate/maximum/ and calculate/minimum/ are compound conditions: maximum requires that all subfolders are present (logical AND), minimum requires that at least one is present (logical OR). These conventions are especially useful to express launch conditions and conditional activation of roles.
 
 
 ## A.6 trusteando/identity/contact/ — optional, recommended for businesses
 
-<!-- TODO: translate -->
-Campos de contacto público. Si existe la carpeta, los campos siguientes son los estándar reconocidos — usar campos no estándar para la misma función reduce la interoperabilidad:
+Public contact fields. If the folder exists, the following fields are the recognized standard—using non-standard fields for the same function reduces interoperability:
 
 
 ```
 trusteando/identity/contact/
-email                 ← RECOMENDADO
-phone                 ← RECOMENDADO
-web                   ← URL de contacto o formulario
-address/              ← dirección postal estructurada
+email                 ← RECOMMENDED
+phone                 ← RECOMMENDED
+web                   ← contact URL or form
+address/              ← structured postal address
 street
 number
 city
 region
 country             ← ISO 3166-1 alpha-2 (ES, FR, DE...)
 postal_code
-social/               ← presencias sociales
+social/               ← social presences
 twitter
 linkedin
 mastodon
-languages             ← idiomas en que atienden
+languages             ← languages served
 
 ```
 
@@ -1532,35 +1353,34 @@ languages             ← idiomas en que atienden
 
 ```
 trusteando/identity/location/
-lat                   ← OBLIGATORIO si existe location/
-lon                   ← OBLIGATORIO si existe location/
+lat                   ← REQUIRED if location/ exists
+lon                   ← REQUIRED if location/ exists
 place_id/
-externals/          ← IDs en sistemas externos — no controlados
+externals/          ← IDs in external systems — not controlled
 google_maps
 osm               ← OpenStreetMap
 foursquare
 area/
-radius_km           ← área de servicio para entregas etc.
+radius_km           ← service area for deliveries etc.
 
 ```
 
 
 ## A.8 trusteando/identity/classification/ — optional
 
-<!-- TODO: translate -->
-Clasificación oficial del negocio. Si certified_by apunta a un nodo Trusteando, la verificación es criptográfica. Si apunta a una URL externa, se usa verifyExternal(). Si va bajo externals/, solo es un enlace sin verificación automática.
+Official classification of the business. If certified_by points to a Trusteando node, the verification is cryptographic. If it points to an external URL, verifyExternal() is used. If it resides under externals/, it is only a link without automatic verification.
 
 
 ```
 trusteando/identity/classification/
-[organismo]/          ← una entrada por organismo certificador
-stars               ← entero 1-5
-category            ← esquema alfanumérico alternativo
-certified_by        ← URL del nodo o página que certifica
-since               ← fecha de la clasificación
-until               ← fecha de expiración (si aplica)
+[organismo]/          ← one entry per certifying agency
+stars               ← integer 1-5
+category            ← alternative alphanumeric scheme
+certified_by        ← URL of the certifying node or page
+since               ← date of the classification
+until               ← expiration date (if applicable)
 calculated/
-verified          ← bool — verificado contra la fuente
+verified          ← bool — verified against the source
 last_checked
 cache/ttl
 
@@ -1569,96 +1389,93 @@ cache/ttl
 
 ## A.9 trusteando/status/ — optional, recommended for businesses with opening hours
 
-Estado en tiempo real. Los campos de status/ tienen TTL corto por defecto. open es siempre calculated/ — se deriva de open_at_today y close_at_today.
+Real-time status. Fields under status/ have a short TTL by default. open is always under calculated/—it is derived from open_at_today and close_at_today.
 
 
 ```
 trusteando/status/
-open_at_today         ← hora apertura hoy (HH:MM) — para clientes de hoy
-close_at_today        ← hora cierre hoy (HH:MM) — para clientes de hoy
-schedule/             ← horario habitual — para reservas futuras
+open_at_today         ← today's opening time (HH:MM) — for today's customers
+close_at_today        ← today's closing time (HH:MM) — for today's customers
+schedule/             ← regular schedule — for future bookings
 monday/ ... sunday/
 open_at
 close_at
-exceptions/         ← festivos, vacaciones, eventos
+exceptions/         ← holidays, vacations, events
 [YYYY-MM-DD]/
 open_at
 close_at
-closed          ← bool explícito
+closed          ← explicit bool
 note            ← 'Semana Santa', 'Vacaciones agosto'
 occupancy/
-current             ← ocupación actual (0-100%)
-capacity            ← aforo máximo
-cache/ttl           ← corto — dato en tiempo real
+current             ← current occupancy (0-100%)
+capacity            ← maximum capacity
+cache/ttl           ← short — real-time data
 queue/
-current_number      ← número que se atiende ahora
-last_issued         ← último número emitido
-wait_minutes        ← espera estimada
+current_number      ← number currently being served
+last_issued         ← last number issued
+wait_minutes        ← estimated wait
 cache/ttl
-special/              ← ofertas o eventos activos
-[offer_id]          ← referencia a transactions/trusteando/offers/
+special/              ← active offers or events
+[offer_id]          ← reference to transactions/trusteando/offers/
 calculated/
 open                ← bool: now >= open_at_today && now < close_at_today
 open/cache/
-ttl               ← segundos hasta próximo cambio de estado
+ttl               ← seconds until the next state change
 
 ```
 
 
 ## A.10 trusteando/notifications/ — optional
 
-<!-- TODO: translate -->
-Canal de notificaciones para parsers y agregadores. Permite mantenerse sincronizado sin recorrer el árbol completo.
+Notification channel for parsers and aggregators. Allows staying synchronized without traversing the entire tree.
 
 
 ```
 trusteando/notifications/
-last_updated          ← timestamp del último cambio
+last_updated          ← timestamp of the last change
 changelog/
 [timestamp]/
-path              ← qué carpeta cambió
+path              ← which folder changed
 action            ← created | updated | deleted | calculated
 summary
-cache/ttl             ← corto — los parsers comprueban frecuentemente
+cache/ttl             ← short — parsers check frequently
 
 ```
 
 
 ## A.11 The cache/ Convention — applicable to any folder
 
-<!-- TODO: translate -->
-Cualquier carpeta puede declarar su comportamiento de caché con una subcarpeta cache/. Si no existe, se aplica el TTL por defecto del protocolo según el tipo de contenido.
+Any folder can declare its caching behavior with a cache/ subfolder. If it does not exist, the protocol’s default TTL is applied based on the content type.
 
 
 ```
 property/cache/
-ttl                   ← segundos hasta expiración (0 = no cachear)
+ttl                   ← seconds until expiration (0 = do not cache)
 strategy              ← no_cache | short | normal | long
 
-TTL por defecto según contenido:
+Default TTL by content:
 status/calculated/    → no_cache (0s)
-status/occupancy/     → corto (60s)
-transactions/offers/  → corto (300s)
-identity/             → largo (86400s)
+status/occupancy/     → short (60s)
+transactions/offers/  → short (300s)
+identity/             → long (86400s)
 registry/             → normal (3600s)
-notifications/        → corto (120s)
+notifications/        → short (120s)
 
 ```
 
 
 ## A.12 trusteando/adapters/ — optional
 
-<!-- TODO: translate -->
-Adaptadores que permiten a organismos con bases de datos propias exponer sus datos con la misma interfaz que las carpetas del protocolo. El organismo publica la función, el parser la llama con rutas del protocolo y recibe valores como si fueran carpetas.
+Adapters that allow agencies with their own databases to expose their data through the same interface as protocol folders. The agency publishes the function, the parser calls it with protocol paths, and receives values as if they were folders.
 
 
 ```
 trusteando/adapters/
-[nombre_funcion]/
+[function_name]/
 name
 description
-input_schema        ← campos del protocolo que necesita
-output_schema       ← campos que devuelve
+input_schema        ← protocol fields it needs
+output_schema       ← fields it returns
 version
 cache/ttl
 
@@ -1667,24 +1484,22 @@ cache/ttl
 
 ## A.13 Mandatory, Recommended and Optional Fields
 
-<!-- TODO: translate -->
-OBLIGATORIO — sin estos campos el nodo no es válido para el protocolo:
+MANDATORY — without these fields the node is not valid for the protocol:
 
 - trusteando/identity/public_key
 - trusteando/identity/hash_migracion
 - trusteando/identity/hash_disputa
 - trusteando/identity/entity_type
-- trusteando/identity/location/lat y lon — si existe location/
-RECOMENDADO — opcional pero mejora la interoperabilidad:
+- trusteando/identity/location/lat and lon — if location/ exists
+RECOMMENDED — optional but improves interoperability:
 
 - trusteando/identity/scope
-- trusteando/identity/root_certificate — si existe reconocimiento formal
-- trusteando/identity/contact/ — para negocios
-- <!-- TODO: translate --> trusteando/identity/location/ — para negocios físicos
-- trusteando/status/ — para negocios con horario
-- trusteando/notifications/ — para nodos con cambios frecuentes
-<!-- TODO: translate -->
-OPCIONAL — libre, pero si se implementa debe seguir el esquema estándar:
+- trusteando/identity/root_certificate — if formal recognition exists
+- trusteando/identity/contact/ — for businesses
+- trusteando/identity/location/ — for physical businesses
+- trusteando/status/ — for businesses with schedules
+- trusteando/notifications/ — for nodes with frequent changes
+OPTIONAL — free, but if implemented it must follow the standard schema:
 
 - trusteando/identity/classification/
 - trusteando/status/queue/
@@ -1696,85 +1511,81 @@ OPCIONAL — libre, pero si se implementa debe seguir el esquema estándar:
 - trusteando/messaging/
 - trusteando/media/
 - trusteando/hooks/
-<!-- TODO: translate -->
-Antes de crear un campo nuevo, verifica si algún campo estándar ya cumple esa función. Usar campos estándar garantiza que parsers, agregadores, y aplicaciones de terceros puedan interpretar tu nodo sin configuración adicional. Los campos no estándar son ignorados por implementaciones que no los conocen — lo que es correcto — pero se pierde interoperabilidad. Si creas un campo no estándar que aporta valor diferencial, decláralo bajo trusteando/extensions/ con una justificación.
+Before creating a new field, verify whether an existing standard field already fulfills that function. Using standard fields ensures that parsers, aggregators, and third-party applications can interpret your node without additional configuration. Non-standard fields are ignored by implementations that do not know them—which is appropriate—but interoperability is lost. If you create a non-standard field that brings differentiating value, declare it under trusteando/extensions/ with justification.
 
 
 ## A.14 Presence-Based Boolean Convention
 
-<!-- TODO: translate -->
-En el protocolo, la presencia de una carpeta indica verdadero — su ausencia indica falso. No hay campos con valor bool explícito. Esto simplifica la verificación — un parser comprueba si la carpeta existe, no si el valor es true o false. Y simplifica la publicación — el negocio crea o elimina carpetas, no edita valores.
+In the protocol, the presence of a folder represents true—its absence represents false. There are no fields with an explicit bool value. This simplifies verification—a parser checks whether the folder exists, not whether a value is true or false. And it simplifies publishing—the business creates or removes folders, not editing values.
 
 
 ```
 trusteando/payments/accepted/
-cash/          ← existe → acepta efectivo
-card/          ← existe → acepta tarjeta
-google_pay/    ← existe → acepta Google Pay
-← bizum/ no existe → no acepta bizum
+cash/          ← exists → accepts cash
+card/          ← exists → accepts cards
+google_pay/    ← exists → accepts Google Pay
+← bizum/ does not exist → does not accept bizum
 
 trusteando/features/
-parking/       ← existe → tiene parking
-wifi/          ← existe → tiene wifi
-← pool/ no existe → no tiene piscina
+parking/       ← exists → has parking
+wifi/          ← exists → has wifi
+← pool/ does not exist → no pool
 
 ```
 
 
 ## A.15 trusteando/features/ — optional
 
-<!-- TODO: translate -->
-Características verificables del negocio — hechos estructurados que parsers y agregadores pueden usar para filtrar y comparar. No es marketing — es información interoperable. Algunos campos pueden tener un certified_by si un organismo los verifica.
+Verifiable features of the business—structured facts that parsers and aggregators can use to filter and compare. It is not marketing—it is interoperable information. Some fields can have a certified_by if an agency verifies them.
 
 
 ```
 trusteando/features/
-parking/                ← bool por presencia
+parking/                ← bool by presence
 type/                 ← free/ | paid/ | valet/
-spaces                ← número de plazas
-wifi/                   ← bool por presencia
+spaces                ← number of spots
+wifi/                   ← bool by presence
 speed_mbps
-accessibility/          ← bool por presencia
-wheelchair/           ← bool por presencia
-elevator/             ← bool por presencia
-certified_by          ← organismo verificador opcional
-pets/                   ← bool por presencia
-conditions            ← texto libre
-pool/                   ← bool por presencia
+accessibility/          ← bool by presence
+wheelchair/           ← bool by presence
+elevator/             ← bool by presence
+certified_by          ← optional certifying agency
+pets/                   ← bool by presence
+conditions            ← free text
+pool/                   ← bool by presence
 type/                 ← indoor/ | outdoor/ | both/
 checkin/
 from                  ← HH:MM
 until                 ← HH:MM
 checkout/
 until                 ← HH:MM
-restaurant/             ← bool por presencia
-cuisine               ← tipo de cocina
-smoking/                ← bool por presencia — permite fumar
-air_conditioning/       ← bool por presencia
-heating/                ← bool por presencia
+restaurant/             ← bool by presence
+cuisine               ← type of cuisine
+smoking/                ← bool by presence — smoking allowed
+air_conditioning/       ← bool by presence
+heating/                ← bool by presence
 
 ```
 
 
 ## A.16 trusteando/payments/ — optional
 
-<!-- TODO: translate -->
-Métodos de pago aceptados y hook al proveedor de pagos. El protocolo no implementa pagos — define dónde se conectan. Cambiar de proveedor es modificar un solo campo.
+Accepted payment methods and hook to the payment provider. The protocol does not implement payments—it defines where they connect. Changing providers is modifying a single field.
 
 
 ```
 trusteando/payments/
-accepted/               ← métodos aceptados — booleanos por presencia
+accepted/               ← accepted methods — booleans by presence
 cash/
 card/
 contactless/
 bizum/
 google_pay/
 apple_pay/
-invoice/              ← acepta factura
-agent/                  ← hook al proveedor de pagos
-provider              ← URL del nodo del proveedor
-endpoint              ← donde se inicia la transacción
+invoice/              ← accepts invoice
+agent/                  ← hook to the payment provider
+provider              ← URL of the provider node
+endpoint              ← where the transaction starts
 externals/
 stripe
 redsys
@@ -1785,55 +1596,52 @@ paypal
 
 ## A.17 trusteando/messaging/ — optional
 
-<!-- TODO: translate -->
-Hook al proveedor de mensajería. El protocolo no implementa mensajería — define dónde se conecta. Se recomienda priorizar protocolos abiertos como Matrix sobre soluciones propietarias.
+Hook to the messaging provider. The protocol does not implement messaging—it defines where it connects. Open protocols like Matrix are recommended over proprietary solutions.
 
 
 ```
 trusteando/messaging/
 agent/
-provider              ← URL del nodo del proveedor
+provider              ← URL of the provider node
 externals/
 whatsapp
 telegram
-matrix              ← protocolo abierto recomendado
-email               ← fallback universal
+matrix              ← open protocol recommended
+email               ← universal fallback
 
 ```
 
 
 ## A.18 trusteando/hooks/ — optional
 
-<!-- TODO: translate -->
-Punto de conexión general para servicios externos. Los hooks siguen un principio deliberado: el negocio nunca debe estar atado a un proveedor específico por razones técnicas. El protocolo define los puntos de conexión — el mercado decide quién los implementa mejor. Cambiar de proveedor debe ser siempre una decisión de negocio, nunca una migración técnica.
+General connection point for external services. Hooks follow a deliberate principle: the business should never be tied to a specific provider for technical reasons. The protocol defines the connection points—the market decides who implements them best. Changing provider should always be a business decision, never a technical migration.
 
 
 ```
 trusteando/hooks/
-payments/agent/provider     ← proveedor de pagos
-messaging/agent/provider    ← proveedor de mensajería
-booking/agent/provider      ← proveedor de reservas
-delivery/agent/provider     ← proveedor de entregas
-analytics/agent/provider    ← proveedor de analíticas
+payments/agent/provider     ← payment provider
+messaging/agent/provider    ← messaging provider
+booking/agent/provider      ← booking provider
+delivery/agent/provider     ← delivery provider
+analytics/agent/provider    ← analytics provider
 
 ```
 
 
 ## A.19 trusteando/media/ — optional
 
-<!-- TODO: translate -->
-Imágenes y contenido multimedia verificable. Los hashes garantizan que el contenido no ha sido alterado. El almacenamiento real puede estar en cualquier CDN — el protocolo solo registra el hash y la referencia.
+Verifiable images and multimedia content. Hashes guarantee that the content has not been altered. The actual storage may live on any CDN—the protocol only records the hash and the reference.
 
 
 ```
 trusteando/media/
 photos/
 [photo_id]/
-hash              ← SHA-256 del fichero
-url               ← donde está almacenada la imagen
-caption           ← descripción
-taken_at          ← fecha
-certified_by      ← quien verificó que es real (opcional)
+hash              ← SHA-256 of the file
+url               ← where the image is stored
+caption           ← description
+taken_at          ← date
+certified_by      ← who verified it is real (optional)
 logo/
 hash
 url
@@ -1843,107 +1651,101 @@ url
 
 ## A.20 trusteando/rescue/ — optional but critical
 
-<!-- TODO: translate -->
-La carpeta de resiliencia declara dónde están las copias operativas del nodo si el servidor principal cae. Tiene una propiedad especial respecto al caché: es la única carpeta del protocolo con prioridad de caché obligatoria.
+The resilience folder declares where the node's operational copies are located if the primary server falls. It has a special caching property: it is the only folder in the protocol with mandatory cache priority.
 
-<!-- TODO: translate -->
-La paradoja de rescue/ es que si solo se lee cuando el servidor cae, ya es demasiado tarde para leerla. Por eso todo parser que visite un nodo debe cachear rescue/ en su primera visita y renovarla periódicamente — independientemente del TTL del resto del árbol. Un parser que no tiene rescue/ en caché no puede ofrecer resiliencia ante caídas.
+The paradox of rescue/ is that if it is only read when the server falls, it is already too late to read it. That is why every parser visiting a node must cache rescue/ on its first visit and refresh it periodically—regardless of the rest of the tree's TTL. A parser without rescue/ cached cannot provide resilience during outages.
 
 
 ```
 trusteando/rescue/
 cache/
-ttl                 ← 604800s (7 días) por defecto
-priority            ← max — se cachea antes que cualquier otra carpeta
-strategy            ← always — nunca se omite aunque el resto no se cachee
-mirrors/              ← copias del nodo en otros servidores
+ttl                 ← 604800s (7 days) by default
+priority            ← max — cached before any other folder
+strategy            ← always — never skipped even if the rest are not cached
+mirrors/              ← node copies on other servers
 [mirror_id]/
-url               ← URL del mirror
-last_synced       ← timestamp de la última sincronización
-operator          ← quién opera el mirror
-verified/         ← bool por presencia — mirror verificado
+url               ← URL of the mirror
+last_synced       ← timestamp of the last synchronization
+operator          ← who operates the mirror
+verified/         ← bool by presence — mirror verified
 fallback/
-ttl                 ← cuánto tiempo es válida la copia cacheada
+ttl                 ← how long the cached copy remains valid
 backup/
-frequency           ← cada cuánto se hace backup
-last_backup         ← timestamp del último backup
+frequency           ← how often a backup is made
+last_backup         ← timestamp of the last backup
 externals/
-github            ← repo donde se publica el backup
-ipfs              ← si usa IPFS para distribución
+github            ← repo where the backup is published
+ipfs              ← if using IPFS for distribution
 emergency/
 contact/
-primary           ← contacto principal
-secondary         ← contacto alternativo
-protocol          ← URL al documento de procedimiento
+primary           ← primary contact
+secondary         ← alternate contact
+protocol          ← URL of the procedure document
 escalation/
-level_1           ← primer escalado si primary no responde
-level_2           ← segundo escalado
-root              ← escalar al root como último recurso
-status_page         ← URL donde se publica el estado del nodo
-hook/               ← comodín para sistemas de gestión de emergencias
-provider          ← URL del sistema externo
-endpoint          ← donde se notifica el problema
-severity_levels/  ← niveles de severidad que maneja
-externals/        ← si usa sistemas conocidos
+level_1           ← first escalation if primary does not respond
+level_2           ← second escalation
+root              ← escalate to the root as a last resort
+status_page         ← URL where the node's status is published
+hook/               ← wildcard for emergency management systems
+provider          ← URL of the external system
+endpoint          ← where the issue is reported
+severity_levels/  ← severity levels handled
+externals/        ← if using known systems
 pagerduty
 opsgenie
 victorops
 
 ```
 
-<!-- TODO: translate -->
-Para casos de uso con requisitos de disponibilidad críticos, el hook emergency/hook/ permite conectar el protocolo con cualquier sistema de gestión de incidentes externo. El protocolo no especifica ese sistema — solo define el punto de conexión. Las extensiones necesarias para esos casos de uso se declaran bajo trusteando/extensions/ siguiendo el proceso estándar.
+For use cases with critical availability requirements, the emergency/hook/ hook allows the protocol to connect with any external incident management system. The protocol does not specify that system—it only defines the connection point. The extensions required for those cases are declared under trusteando/extensions/ following the standard process.
 
-<!-- TODO: translate -->
-El orden de caché recomendado para cualquier parser:
+The recommended cache order for any parser:
 
 
 ```
-1. rescue/         ← SIEMPRE — primera visita y renovación periódica
-2. identity/       ← alta prioridad — cambia poco
-3. notifications/  ← para detectar cambios posteriores
+1. rescue/         ← ALWAYS — first visit and periodic refresh
+2. identity/       ← high priority — rarely changes
+3. notifications/  ← to detect subsequent changes
 4. registry/       ← normal
-5. status/         ← corto o no_cache
-6. resto           ← según su propio cache/ttl declarado
+5. status/         ← short or no_cache
+6. rest            ← according to its own declared cache/ttl
 
 ```
 
 
 ## A.21 trusteando/safety/ — optional, recommended for public venues
 
-<!-- TODO: translate -->
-Información de seguridad del establecimiento. Tiene dos capas complementarias: información básica local — disponible desde el principio, publicada por el propio establecimiento — y referencias a agentes externos con autoridad real sobre la seguridad del local.
+Safety information for the establishment. It has two complementary layers: local basic information—available from the start, published by the establishment itself—and references to external agents with real authority over the location’s safety.
 
-<!-- TODO: translate -->
-La presencia de fully_implemented/ junto a un agente indica que ese agente tiene una implementación completa y específica para este establecimiento en su propio nodo. Su ausencia indica que la información local puede ser la única disponible.
+The presence of fully_implemented/ alongside an agent indicates that the agent has a complete and specific implementation for this establishment on its own node. Its absence indicates that the local information may be the only one available.
 
 
 ```
 trusteando/safety/
 
-← Información básica local
+← Local basic information
 emergency_exits/
 [exit_id]/
-location          ← descripción o coordenadas
+location          ← description or coordinates
 floor
-accessible/       ← bool por presencia
-assembly_point        ← punto de encuentro exterior
+accessible/       ← bool by presence
+assembly_point        ← external meeting point
 capacity/
-max                 ← aforo máximo legal
+max                 ← legal maximum capacity
 certified_by
-defibrillator/        ← bool por presencia
+defibrillator/        ← bool by presence
 location
-first_aid/            ← bool por presencia
+first_aid/            ← bool by presence
 location
 evacuation/
 plan_url
 
-← Referencias a agentes con autoridad real
+← References to agents with real authority
 authorities/
 fire/
-node              ← URL nodo bomberos con entrada específica
-fully_implemented/ ← bool por presencia — plan completo verificable
-externals/phone   ← fallback mientras no hay nodo completo
+node              ← firefighters' node URL with specific entry
+fully_implemented/ ← bool by presence — verifiable complete plan
+externals/phone   ← fallback while no complete node exists
 police/
 node
 fully_implemented/
@@ -1956,108 +1758,95 @@ food_safety/
 node
 fully_implemented/
 building/
-node              ← ayuntamiento — licencias y normativa edilicia
+node              ← town hall — licenses and building regulations
 fully_implemented/
 insurance/
-node              ← aseguradora — póliza activa
+node              ← insurer — active policy
 fully_implemented/
 
 ```
 
-<!-- TODO: translate -->
-La seguridad de un local no es lo que el local dice sobre sí mismo — es la red de organismos con autoridad que han implementado algo específico sobre él. La información local bajo safety/ es siempre útil como punto de partida y como redundancia. La presencia de fully_implemented/ junto a un agente indica que la fuente autoritativa está en el nodo externo y que el trabajo previo está completado y verificable.
+Safety for a venue is not what the venue says about itself—it is the network of authorities that have implemented something specific for it. The local information under safety/ is always useful as a starting point and redundancy. The presence of fully_implemented/ alongside an agent indicates that the authoritative source lives on the external node and that the prior work is complete and verifiable.
 
-A.22 trusteando/registry/compromised/ — opcional
+## A.22 trusteando/registry/compromised/ — optional
 
-<!-- TODO: translate -->
-Lista de claves públicas o hashes públicos que el emisor declara como comprometidos o inválidos. Permite la revocación proactiva por parte del emisor sin esperar a que el propio sujeto inicie una migración.
+List of public keys or public hashes that the issuer declares compromised or invalid. It allows proactive revocation by the issuer without waiting for the subject to initiate a migration.
 
-<!-- TODO: translate -->
-El caso de uso principal es la protección del ecosistema cuando el emisor tiene evidencia de que una clave ha sido vulnerada antes de que el sujeto pueda actuar: una universidad que detecta que las credenciales de un miembro han sido robadas puede publicar el hash_publico comprometido en esta carpeta de forma inmediata. Cualquier verificador que consulte registry/compromised/ sabe que esa clave no debe aceptarse aunque la firma sea criptográficamente válida.
+The main use case is ecosystem protection when the issuer has evidence that a key was breached before the subject can act: a university that detects stolen credentials can publish the compromised hash_publico in this folder immediately. Any verifier who checks registry/compromised/ knows that key must not be accepted even if the signature is cryptographically valid.
 
 ```
 trusteando/registry/compromised/
-{hash_publico_comprometido}/    ← bool por presencia: esta clave no debe aceptarse
-since/2026-03-18T10:30:00Z   ← fecha de deteccion del compromiso
+{hash_publico_comprometido}/    ← bool by presence: this key must not be accepted
+since/2026-03-18T10:30:00Z   ← compromise detection time
 ```
 
-<!-- TODO: translate -->
-Esta carpeta es complementaria al mecanismo de migración del sujeto (sección 4.7) y al state brokenado de la gramática (A.22). Juntos cubren los tres vectores de revocación: el sujeto migra voluntariamente, el emisor revoca proactivamente, y la red observa y declara el state brokenado mediante quórum.
+This folder complements the subject migration mechanism (section 4.7) and the state brokenado grammar (A.22). Together they cover the three revocation vectors: the subject migrates voluntarily, the issuer revokes proactively, and the network observes and declares state brokenado via quorum.
 
 
-<!-- TODO: translate -->
-El protocolo define una jerarquía de resolución de disputas análoga al recurso de alzada en derecho administrativo. Las disputas se resuelven al nivel más bajo posible. Elevar una disputa tiene un coste creciente para desincentivar el uso frívolo.
+The protocol defines a dispute resolution hierarchy analogous to an administrative appeal. Disputes are resolved at the lowest possible level. Elevating a dispute carries increasing cost to discourage frivolous use.
 
 
 ## B.1 Resolution Hierarchy
 
 
 ```
-Nivel 1 — el superior inmediato
-Juan tiene disputa con la universidad
-→ la universidad resuelve usando hash_disputa de Juan
-Coste: bajo
+Level 1 — immediate superior
+Juan has a dispute with the university
+→ the university resolves it using Juan's hash_disputa
+Cost: low
 
-Nivel 2 — recurso de alzada
-Juan no acepta la resolución de la universidad
-→ eleva al nodo superior de la universidad
-→ ese nodo resuelve con su propia autoridad
-Coste: medio
+Level 2 — appeal
+Juan does not accept the university's resolution
+→ elevates to the university's superior node
+→ that node resolves with its own authority
+Cost: medium
 
 ...
 
-Nivel N — el root como tribunal de última instancia
-Solo para disputas que han agotado niveles inferiores
-O para disputas entre nodos sin superior común
-Coste: elevado
+Level N — the root as the highest court
+Only for disputes that have exhausted lower levels
+Or for disputes between nodes without a common superior
+Cost: high
 
 ```
 
 
 ## B.2 The Cost of Dispute
 
-<!-- TODO: translate -->
-Cada nivel tiene un coste creciente — económico y de reputación. Elevar una disputa al root sin haber pasado por los niveles inferiores no está permitido salvo casos excepcionales tasados. Perder una disputa que se elevó innecesariamente tiene consecuencias para el nodo que la elevó. El modelo es análogo a las tasas judiciales: existen para que los recursos sean proporcionales a la gravedad del asunto.
+Each level has an increasing cost—both economic and reputational. Elevating a dispute to the root without passing through the lower levels is not allowed except for specified exceptional cases. Losing a dispute elevated unnecessarily has consequences for the node that raised it. The model is analogous to court fees: they exist so that challenges are proportional to the seriousness of the matter.
 
 
 ## B.3 The Role of hash_disputa
 
-<!-- TODO: translate -->
-El hash_disputa — derivado de clave_emergencia_2, nunca revelado en migraciones normales — es la prueba de identidad ante el árbitro. En una disputa el nodo demuestra que conoce la clave que produce ese hash sin revelarla. El árbitro verifica la prueba y resuelve. Si la disputa sube de nivel, el hash_disputa acompaña el expediente — es la cadena de custodia criptográfica de la identidad del disputante.
+hash_disputa—derived from clave_emergencia_2, never revealed in normal migrations—is the proof of identity before the arbitrator. In a dispute, the node demonstrates that it knows the key that produces that hash without revealing it. The arbitrator verifies the proof and resolves. If the dispute escalates, the hash_disputa accompanies the record—it is the cryptographic chain of custody for the disputant’s identity.
 
 
-<!-- TODO: translate -->
-A.23 Gramática de rutas: gramática definitiva
+## A.23 Route grammar: definitive grammar
 
-<!-- TODO: translate -->
-Los segmentos de una ruta son de tres tipos. El parser los distingue por la presencia de corchetes y por la presencia de espacio dentro de ellos. Los únicos caracteres reservados del protocolo son /, [ y ].
+Route segments come in three types. The parser distinguishes them by the presence of brackets and whether there is whitespace inside them. The only reserved characters in the protocol are /, [ and ].
 
-<!-- TODO: translate -->
-Tipo 1 — Identificador canónico (sin corchetes)
+Type 1 — canonical identifier (without brackets)
 
 ```
 hospital-la-paz     restaurante-casa-robles     universidad-malaga
-Nodo del grafo con identidad propia y autoridad sobre su espacio. La convención de nomenclatura es tipo-nombre: el tipo forma parte del identificador, lo hace canónico y autoexplicativo fuera de contexto. Dos nodos consecutivos separados por / implican relación jerárquica con transferencia de autoridad.
+Graph node with its own identity and authority over its space. The naming convention is type-name: the type is part of the identifier, making it canonical and self-explanatory out of context. Two consecutive nodes separated by / imply a hierarchical relationship with authority transfer.
 ```
 
-<!-- TODO: translate -->
-Tipo 2 — Relación (corchetes, sin espacio interior)
+Type 2 — Relation (brackets, without inner space)
 
 ```
 [en]     [accredited-by]     [funded-by]     [agreement-with]
 ```
 
-<!-- TODO: translate -->
-Operador semántico que conecta nodos. Expresa una relación contextual sin transferencia de autoridad: el nodo que precede al operador no certifica al que le sigue. El vocabulario es abierto — cualquier término en lenguaje natural es válido.
+Semantic operator that connects nodes. It expresses a contextual relationship without authority transfer: the node preceding the operator does not certify the one that follows. The vocabulary is open—any natural-language term is valid.
 
-Tipo 3 — Propiedad con valor (corchetes, con espacio interior)
+Type 3 — Property with value (brackets, with inner space)
 
 ```
 [camas 150]     [fundado 1964]     [estrellas 2]     [temperatura 23.5]
 ```
 
-<!-- TODO: translate -->
-Atributo del nodo precedente. El valor es un literal inmutable — no es una entidad navegable ni tiene URL propia. El espacio dentro de los corchetes es el marcador semántico que distingue este tipo del anterior.
+Attribute of the preceding node. The value is an immutable literal—it is not a navigable entity nor does it have its own URL. The space inside the brackets is the semantic marker that distinguishes this type from the previous one.
 
 Rutas completas:
 
@@ -2084,110 +1873,94 @@ def parse_path(path):
 return [parse_segment(s) for s in path.strip('/').split('/')]
 ```
 
-<!-- TODO: translate -->
-Esta gramática no reemplaza la convención since/until para hechos temporales ni la carpeta externals/ para vínculos sin control. Es una extensión ortogonal que permite expresar relaciones y propiedades directamente en la ruta de forma autodocumentada, sin añadir carga al protocolo base.
+This grammar does not replace the since/until convention for temporal facts nor the externals/ folder for uncontrolled links. It is an orthogonal extension that allows expressing relationships and properties directly in the path in a self-documenting way, without adding burden to the base protocol.
 
-<!-- TODO: translate -->
-Convenciones semánticas reservadas
+Reserved semantic conventions
 
-<!-- TODO: translate -->
-Sobre la gramática base se definen las siguientes convenciones semánticas. No añaden nuevos tipos de segmento ni nuevos caracteres reservados — son valores convencionales dentro del tipo 3 que el protocolo interpreta de forma estandarizada.
+On top of the base grammar, the following semantic conventions are defined. They do not add new segment types or reserved characters—they are conventional values within type 3 that the protocol interprets in standardized ways.
 
 ```
-Relaciones recíprocas: clave mutua
-Cuando la clave de una propiedad es mutua, el valor expresa el tipo de relación y la contraparte. La relación es recíproca: para considerarse verificada, la contraparte debe publicar una declaración equivalente. Hay dos formas:
-pedro/[mutua amistad juan]/  ← bilateral: pedro declara amistad mutua con juan
-juan/[mutua amistad pedro]/  ← juan confirma: relación verificada bilateralmente
-Para relaciones entre más de dos nodos se usa el valor reservado among-members en un nodo colectivo. El nodo declara el tipo de relación que existe entre todos sus miembros:
-grupo-amigos-madrid/[mutua amistad among-members]/  ← relación de amistad mutua entre todos los miembros
+Reciprocal relations: mutual key
+When a property's key is mutual, the value expresses the relation type and the counterpart. The relation is reciprocal: for it to be considered verified, the counterpart must publish an equivalent statement. There are two forms:
+pedro/[mutua amistad juan]/  ← bilateral: pedro declares mutual friendship with juan
+juan/[mutua amistad pedro]/  ← juan confirms: relation verified bilaterally
+For relationships among more than two nodes the reserved value among-members is used on a collective node. The node declares the type of relation that exists among all its members:
+grupo-amigos-madrid/[mutua amistad among-members]/  ← mutual friendship relation among all members
 grupo-amigos-madrid/[miembro pedro]/
 grupo-amigos-madrid/[miembro juan]/
 grupo-amigos-madrid/[miembro ana]/
 ```
 
-<!-- TODO: translate -->
-Distinción crítica: atributo vs subordinación
 
-<!-- TODO: translate -->
-La elección entre tipo 1 y tipo 3 para expresar la relación de un nodo con sus miembros tiene consecuencias semánticas precisas:
+Critical distinction: attribute vs subordination
 
-```
-grupo/miembro/juan/  ← juan está subordinado al grupo. El grupo tiene autoridad sobre él.
-grupo/[miembro juan]/  ← juan es un atributo del grupo. No hay subordinación ni autoridad.
-```
-
-<!-- TODO: translate -->
-Para grupos de iguales — amigos, socios, colaboradores — siempre se usa la forma de atributo. La forma de subordinación se reserva para relaciones jerárquicas reales donde el nodo superior tiene autoridad sobre el inferior.
-
-Vocabulario reservado de estados
-
-<!-- TODO: translate -->
-El protocolo reserva tres términos como estados canónicos de un nodo. Son extensibles en versiones futuras pero no redefinibles por implementaciones particulares:
+The choice between type 1 and type 3 to express a node's relationship with its members has precise semantic consequences:
 
 ```
-trusteando   ← confianza plena, verificado con pruebas sólidas
-verifiado    ← cumple mínimos, aprobado básico
-brokenado    ← nodo comprometido parcialmente: su clave local ha sido vulnerada pero su identidad sigue siendo válida en el quórum restante de roots. No equivale a inválido.
+grupo/miembro/juan/  ← juan is subordinated to the group. The group has authority over him.
+grupo/[miembro juan]/  ← juan is an attribute of the group. There is no subordination nor authority.
 ```
 
-<!-- TODO: translate -->
-Convención [indicates] para afirmaciones con fuente
+For peer groups—friends, partners, collaborators—the attribute form is always used. The subordination form is reserved for real hierarchical relationships where the superior node has authority over the inferior.
+
+Reserved state vocabulary
+
+The protocol reserves three terms as canonical states of a node. They are extendable in future versions but not re-definable by particular implementations:
 
 ```
-Para expresar que un estado o propiedad es afirmado por una entidad externa se usa el operador relacional [indicates] seguido de la fuente. Esto permite atribuir cada afirmación a su origen, tener múltiples fuentes sobre el mismo nodo, y desvincular el protocolo de infraestructura específica. El protocolo no designa fuentes oficiales: cualquier nodo puede actuar como fuente indicando estados sobre otros nodos.
-restaurante-casapepe/[state trusteado]/[indicates]/[fuente michelin.es]/
-root-23/[state brokenado]/[indicates]/[observador root-45]/[observador root-78]/
-restaurante-casapepe/[state trusteado]/[indicates]/[fuente michelin.es]/[fuente tripadvisor.com]/
+trusteando   ← full trust, verified with solid evidence
+verifiado    ← meets minimums, basic approval
+brokenado    ← partially compromised node: its local key has been breached but its identity remains valid within the remaining root quorum. It is not equivalent to invalid.
 ```
 
-<!-- TODO: translate -->
-Azúcar sintáctico: [X by Y] para estados
+Convention [indicates] for source-backed claims
 
 ```
-Para facilitar la escritura humana, el parser puede transformar la forma [X by Y] en [estado X][contexto Y] si y solo si X es un término del vocabulario reservado de estados (actualmente trusteando, verifiado, brokenado). Esta condición es esencial: garantiza que parsers que no implementen el azúcar encuentren una degradación predecible — ven X como parte reconocible del vocabulario — en lugar de una interpretación silenciosamente incorrecta.
-[brokenado by reputacion]   →  [state brokenado][context reputation]
+To express that a state or property is asserted by an external entity, use the relational operator [indicates] followed by the source. This allows attributing each claim to its origin, having multiple sources for the same node, and decoupling the protocol from specific infrastructure. The protocol does not designate official sources: any node can act as a source by indicating states about other nodes.
+restaurante-casapepe/[state trusteado]/[indicates]/[source michelin.es]/
+root-23/[state brokenado]/[indicates]/[observer root-45]/[observer root-78]/
+restaurante-casapepe/[state trusteado]/[indicates]/[source michelin.es]/[source tripadvisor.com]/
+```
+
+Syntactic sugar: [X by Y] for states
+
+```
+To make human writing easier, the parser may transform [X by Y] into [state X][context Y] if and only if X is a term from the reserved state vocabulary (currently trusteando, verifiado, brokenado). This condition is essential: it ensures that parsers that do not implement the sugar encounter a predictable degradation—they see X as a recognizable part of the vocabulary—instead of silently misinterpreting it.
+[brokenado by reputation]   →  [state brokenado][context reputation]
 [trusteando by node-state]  →  [state trusteado][context node-state]
-[reserva by ventana]        →  propiedad ordinaria (reserva no es estado reservado)
-Esta convención no introduce nuevas palabras reservadas en la gramática, solo en el vocabulario semántico. La gramática de tres tipos permanece intacta. by es texto libre en cualquier contexto salvo cuando precede a un valor y está precedido por un estado reservado.
+[reserva by ventana]        →  ordinary property (reserva is not a reserved state)
+This convention does not introduce new reserved words into the grammar, only into the semantic vocabulary. The three-type grammar remains intact. by is free text in any context except when it precedes a value and is preceded by a reserved state.
 ```
 
-<!-- TODO: translate -->
-Nota: La gramática de Trusteando puede entenderse por analogía con la programación orientada a objetos. Las carpetas son objetos. Las subcarpetas son métodos (acciones) o colecciones. Los corchetes son propiedades o valores. Y como establece la sección 2.10, una vez firmados, los valores entre corchetes son inmutables — exactamente igual que los campos de un objeto inmutable en un lenguaje funcional. La diferencia fundamental es que en Trusteando no hay encapsulación: todo es público por defecto salvo lo declarado bajo private/. El grafo es un espacio de objetos verificables, no de estados privados.
+Note: The Trusteando grammar can be understood by analogy with object-oriented programming. Folders are objects. Subfolders are methods (actions) or collections. Brackets are properties or values. And as section 2.10 states, once signed, values inside brackets are immutable—just like the fields of an immutable object in a functional language. The fundamental difference is that in Trusteando there is no encapsulation: everything is public by default except what is declared under private/. The graph is a space of verifiable objects, not private states.
 
-<!-- TODO: translate -->
-A.24 Convención plan/execution para procesos activos
+## A.24 plan/execution convention for active processes
 
-<!-- TODO: translate -->
-La convención since/until describe hechos consumados: períodos con inicio y fin ya conocidos. No es suficiente para representar procesos activos donde existe una intención planificada y una ejecución que puede diferir de ella. Para estos casos el protocolo define la convención plan/execution.
+The since/until convention describes completed facts: periods whose start and end are already known. It is not sufficient to represent active processes where there is a planned intention and an execution that may differ. For those cases the protocol defines the plan/execution convention.
 
-<!-- TODO: translate -->
-Cualquier acción, orden, tarea o proceso puede contener dos subcarpetas:
+Any action, order, task, or process can contain two subfolders:
 
 ```
 accion/
-├── plan/        ← intención, firmado por quien ordena o planifica
-│   └── [libre]   ← start/, end/, resources/, priority/... lo que el dominio necesite
-└── execution/  ← realidad, firmado por quien ejecuta
-└── [libre]   ← start/, end/, reports/, incidents/... lo que el dominio necesite
+├── plan/        ← intention, signed by whoever orders or plans
+│   └── [free]   ← start/, end/, resources/, priority/... whatever the domain needs
+└── execution/  ← reality, signed by whoever executes
+└── [free]   ← start/, end/, reports/, incidents/... whatever the domain needs
 ```
 
-<!-- TODO: translate -->
-El contenido de cada subcarpeta es libre: el protocolo no prescribe qué carpetas van dentro. Cada dominio define el vocabulario que necesita. Esta libertad no sacrifica interoperabilidad — la distinción entre intención y realidad es universal; el vocabulario interno es específico del contexto.
+The contents of each subfolder are free: the protocol does not prescribe which folders go inside. Each domain defines the vocabulary it needs. This freedom does not sacrifice interoperability—the distinction between intention and reality is universal; the internal vocabulary is specific to the context.
 
-<!-- TODO: translate -->
-La semántica de booleanos por presencia se aplica directamente: la ausencia de execution/end/ indica que el proceso está en curso. Su presencia indica que ha concluido. No hay campo de estado explícito — el estado se lee en la estructura.
+The presence-based boolean semantics apply directly: the absence of execution/end/ indicates the process is ongoing. Its presence indicates completion. There is no explicit state field—the state is read from the structure.
 
-<!-- TODO: translate -->
-El control de acceso sigue la regla general del protocolo: quien controla la URL bajo la que publica tiene autoridad sobre ese contenido. plan/ lo firma quien ordena; execution/ lo firma quien ejecuta. Un verificador externo puede comparar ambas subcarpetas y derivar el estado real del proceso — retraso, cumplimiento, desviación — sin necesidad de consultar a ninguna de las partes.
+Access control follows the protocol's general rule: whoever controls the URL under which content is published has authority over that content. plan/ is signed by whoever orders; execution/ is signed by whoever executes. An external verifier can compare both subfolders and derive the process's real state—delays, compliance, deviation—without needing to consult either party.
 
-<!-- TODO: translate -->
-Ejemplos de aplicación:
+Examples of application:
 
 ```
-— Emergencias: orden-001/plan/end/ es el deadline; orden-001/execution/end/ es cuándo se completó.
-— Construcción: cimentacion/plan/end/ es la fecha prevista; cimentacion/execution/porcentaje/ es el avance real.
-— Trámite administrativo: solicitud/plan/resolucion/ es el plazo legal; solicitud/execution/resolucion/ es la fecha real.
-— Software: sprint/plan/story-points/ es la estimación; sprint/execution/completados/ es lo entregado.
+— Emergencies: orden-001/plan/end/ is the deadline; orden-001/execution/end/ is when it was completed.
+— Construction: cimentacion/plan/end/ is the planned date; cimentacion/execution/porcentaje/ is the real progress.
+— Administrative procedure: solicitud/plan/resolucion/ is the legal term; solicitud/execution/resolucion/ is the actual date.
+— Software: sprint/plan/story-points/ is the estimate; sprint/execution/completados/ is what was delivered.
 
 ```
 
@@ -2196,8 +1969,7 @@ Ejemplos de aplicación:
 
 # Appendix C — Minimal Protocol API
 
-<!-- TODO: translate -->
-La API define cómo se interactúa con un nodo. Es independiente de la implementación — un nodo puede ser un servidor web estático, una API REST, o un microservicio, mientras exponga estos métodos con la misma semántica. La API es una conveniencia para facilitar la interoperabilidad — lo que no esté aquí puede implementarse libremente sin romper el protocolo.
+The API defines how to interact with a node. It is independent of the implementation—a node can be a static web server, a REST API, or a microservice, as long as it exposes these methods with the same semantics. The API is a convenience to facilitate interoperability—what is not here can be implemented freely without breaking the protocol.
 
 
 ## C.1 Verification
@@ -2279,11 +2051,9 @@ denyReveal(request_id)
 
 # Appendix D — Business Layer — transactions/trusteando/
 
-<!-- TODO: translate -->
-El protocolo Trusteando es general — sirve para identidad, certificaciones, y cualquier hecho verificable. La capa de negocio es una extensión opcional que estandariza cómo se expresan transacciones y reputación verificables. Cualquier nodo que quiera participar en el ecosistema de transacciones verificables adopta la convención transactions/trusteando/.
+The Trusteando protocol is general—it serves identity, certifications, and any verifiable fact. The business layer is an optional extension that standardizes how verifiable transactions and reputation are expressed. Any node that wants to participate in the verifiable transactions ecosystem adopts the transactions/trusteando/ convention.
 
-<!-- TODO: translate -->
-La convención es voluntaria pero estratégicamente importante: cualquier sistema que quiera indexar, agregar, o verificar transacciones y reputación de forma interoperable tiene que hablar este lenguaje. La carpeta es la declaración de participación — no hace falta registro central ni API especial.
+The convention is voluntary but strategically important: any system that wants to index, aggregate, or verify transactions and reputation interoperably must speak this language. The folder is the declaration of participation—no central registry or special API is required.
 
 
 ## D.1 Structure of transactions/trusteando/
@@ -2292,23 +2062,23 @@ La convención es voluntaria pero estratégicamente importante: cualquier sistem
 ```
 casapepe.es/transactions/trusteando/
 
-visits/                              ← visitas verificadas
+visits/                              ← verified visits
 since/YYYY-MM-DD/[visitor_hash]
 
-reviews/                             ← colección de reseñas
-review/                            ← objeto reseña (datos primarios)
-set_id                           ← identificador único
-type                             ← entero enumerado (ver D.2)
-content_hash                     ← SHA-256 del texto
-rating                           ← valoración numérica
-visit_ref                        ← referencia a visita (si type >= 2)
-payment_ref                      ← referencia a pago (si type >= 3)
-private/             ← campos privados opcionales
-calculated/                        ← índices derivados automáticamente
-verified_visit/                  ← reviews con type >= 2
-verified_paid/                   ← reviews con type >= 3
-verified_identity/               ← reviews con type >= 1
-by_rating/                       ← índice por valoración
+reviews/                             ← review collection
+review/                            ← review object (primary data)
+set_id                           ← unique identifier
+type                             ← enumerated integer (see D.2)
+content_hash                     ← SHA-256 of the text
+rating                           ← numerical rating
+visit_ref                        ← reference to visit (if type >= 2)
+payment_ref                      ← reference to payment (if type >= 3)
+private/             ← optional private fields
+calculated/                        ← automatically derived indexes
+verified_visit/                  ← reviews with type >= 2
+verified_paid/                   ← reviews with type >= 3
+verified_identity/               ← reviews with type >= 1
+by_rating/                       ← index by rating
 
 offers/
 [offer_id]/
@@ -2318,25 +2088,21 @@ eligibility/
 
 reputation/
 calculated/
-score                            ← agregado calculado
-total_reviews                    ← conteo de set_id únicos
-total_verified_visits            ← conteo type >= 2
-total_verified_paid              ← conteo type >= 3
+score                            ← calculated aggregate
+total_reviews                    ← count of unique set_id
+total_verified_visits            ← count of type >= 2
+total_verified_paid              ← count of type >= 3
 
 ```
-
-
 ## D.2 Review Enumerated Type
 
-<!-- TODO: translate -->
-El campo type es un entero enumerado donde el orden refleja el nivel de verificación — a mayor número, mayor garantía criptográfica:
+The type field is an enumerated integer where the order reflects the verification level—the higher the number, the greater the cryptographic guarantee:
 
 type
 
-nombre
+name
 
-<!-- TODO: translate -->
-garantía
+guarantee
 
 ```
 0
@@ -2344,8 +2110,7 @@ garantía
 
 unverified
 
-<!-- TODO: translate -->
-sin verificación — cualquiera puede opinar
+no verification—anyone can review
 
 ```
 1
@@ -2353,7 +2118,7 @@ sin verificación — cualquiera puede opinar
 
 verified_identity
 
-identidad del autor verificada
+author's identity verified
 
 ```
 2
@@ -2361,8 +2126,7 @@ identidad del autor verificada
 
 verified_visit
 
-<!-- TODO: translate -->
-presencia física verificada
+physical presence verified
 
 ```
 3
@@ -2370,7 +2134,7 @@ presencia física verificada
 
 verified_paid
 
-compra verificada por TPV o token de pago
+purchase verified via POS or payment token
 
 ```
 4
@@ -2378,18 +2142,14 @@ compra verificada por TPV o token de pago
 
 verified_visit_and_paid
 
-<!-- TODO: translate -->
-presencia física + compra verificadas
+physical presence and purchase verified
 
-
-<!-- TODO: translate -->
-El orden importa para consultas: reviews con type >= 2 devuelve solo reseñas con presencia física verificada. Contar reseñas únicas es siempre contar set_id distintos en reviews/review/ — los índices en calculated/ son vistas derivadas, no duplicados.
+The order matters for queries: reviews with type ≥ 2 return only reviews with verified physical presence. Counting unique reviews always means counting distinct set_id values under reviews/review/—the indexes in calculated/ are derived views, not duplicates.
 
 
 ## D.3 The calculated/ Folder
 
-<!-- TODO: translate -->
-Todo lo que está bajo calculated/ es derivado automáticamente de los datos primarios y verificable independientemente por cualquier tercero. Nunca se escribe a mano. El protocolo define dos funciones para gestionar campos calculados:
+Everything under calculated/ is automatically derived from the primary data and independently verifiable by any third party. It is never written by hand. The protocol defines two functions to manage calculated fields:
 
 
 ```
@@ -2408,76 +2168,69 @@ checkIndex(entity_url, collection)
 
 ## D.4 The routing/ Folder
 
-<!-- TODO: translate -->
-Declara explícitamente a quién envía datos una entidad y para qué. Es transparencia activa — cualquier tercero puede ver exactamente qué procesadores tienen autorización. Compatible con el registro de actividades de tratamiento del GDPR.
+Explicitly declares who an entity sends data to and for what purpose. It is active transparency—any third party can see exactly which processors are authorized. Compatible with the GDPR’s record of processing activities.
 
 
 ```
 trusteando/routing/
-processors/           ← entidades autorizadas a procesar mis datos
-confidencenode.org  ← el root — verificaciones
-analytics.es        ← procesador de analíticas autorizado
-subscribers/          ← entidades que reciben notificaciones de eventos
-malaga.org          ← agregador regional suscrito
-webhooks/             ← endpoints que reciben eventos automáticamente
+processors/           ← entities authorized to process my data
+confidencenode.org  ← the root — verifications
+analytics.es        ← authorized analytics processor
+subscribers/          ← entities receiving event notifications
+malaga.org          ← subscribed regional aggregator
+webhooks/             ← endpoints that automatically receive events
 
 ```
 
 
 ## D.5 Semantics of Reserved Prefixes
 
-carpeta
+folder
 
-<!-- TODO: translate -->
-semántica
+semantics
 
 ```
 externals/
 ```
 
-enlace a algo no controlado por el nodo
+link to something not controlled by the node
 
 ```
 calculated/
 ```
 
-<!-- TODO: translate -->
-derivado automáticamente, verificable con checkIndex()
+automatically derived, verifiable with checkIndex()
 
 ```
 private/
 ```
 
-existe pero no expuesto por defecto — grantReveal() para acceso
+exists but is not exposed by default—grantReveal() for access
 
 ```
 routing/
 ```
 
-procesadores y suscriptores autorizados a recibir datos
+processors and subscribers authorized to receive data
 
 ```
 fully_implemented/
 ```
 
-<!-- TODO: translate -->
-bool por presencia — el nodo externo referenciado tiene implementación completa y específica. Su ausencia indica implementación parcial o en progreso — la información local puede ser la única disponible.
+bool by presence—the referenced external node has a complete and specific implementation. Its absence indicates a partial or in-progress implementation—the local information may be the only one available.
 
 
 
 ## D.6 The Central Property
 
-<!-- TODO: translate -->
-Una reseña bajo transactions/trusteando/reviews/review/ no es una opinión — es una arista del grafo que conecta un nodo verificado con una visita o compra verificada. El contenido puede ser subjetivo pero la presencia es objetiva. Cualquier verificador puede comprobarlo consultando URLs públicas.
+A review under transactions/trusteando/reviews/review/ is not an opinion—it is an edge in the graph that connects a verified node with a verified visit or purchase. The content may be subjective but the presence is objective. Any verifier can confirm it by consulting public URLs.
 
-<!-- TODO: translate -->
-Esta propiedad destruye las reseñas falsas por construcción, no por moderación. Y la auditoría es pública y autónoma — cualquiera puede ejecutar checkIndex() y confirmar que los índices de reputación son consistentes con los datos primarios.
+This property destroys fake reviews by construction, not by moderation. And the audit is public and autonomous—anyone can execute checkIndex() and confirm that the reputation indexes are consistent with the primary data.
 
 
 ## D.7 Strategic Value of the Name
 
-<!-- TODO: translate -->
-La convención transactions/trusteando/ asocia el nombre Trusteando con el estándar de transacciones verificables del protocolo. Cualquier implementación que adopte esta convención refuerza ese vínculo. El dominio trusteando.app es la implementación de referencia — el punto de entrada natural para cualquiera que busque qué significa esta carpeta o cómo implementarla.
+The transactions/trusteando/ convention associates the name Trusteando with the protocol’s verifiable transactions standard. Any implementation that adopts this convention strengthens that link. The domain trusteando.app is the reference implementation—the natural entry point for anyone looking to understand what this folder means or how to implement it.
 
 
 
@@ -2485,14 +2238,13 @@ La convención transactions/trusteando/ asocia el nombre Trusteando con el está
 
 # Appendix E — Intentionality Dictionary — Inspiration from Web Mechanisms
 
-<!-- TODO: translate -->
-Trusteando toma inspiración de mecanismos web establecidos. El diccionario siguiente ayuda a entender la intencionalidad de cada carpeta — no implica equivalencia técnica ni compatibilidad directa. Donde la web resolvió problemas similares, Trusteando añade firma criptográfica, semántica de identidad, y verificabilidad pública.
+Trusteando draws inspiration from established web mechanisms. The following dictionary helps understand the intentionality of each folder—it does not imply technical equivalence or direct compatibility. Where the web solved similar problems, Trusteando adds cryptographic signatures, identity semantics, and public verifiability.
 
 Trusteando
 
-Inspirado en
+Inspired by
 
-Diferencia clave
+Key difference
 
 ```
 trusteando/redirect/
@@ -2500,8 +2252,7 @@ trusteando/redirect/
 
 HTTP 301/302
 
-<!-- TODO: translate -->
-Firmado, forma parte del grafo de identidad, con fecha y cadena histórica
+Signed, part of the identity graph, with date and historical chain
 
 ```
 trusteando/notifications/
@@ -2509,8 +2260,7 @@ trusteando/notifications/
 
 HTTP headers / ETag
 
-<!-- TODO: translate -->
-Declarativo en carpeta, verificable, sin negociación de cabeceras
+Declarative in a folder, verifiable, without header negotiation
 
 ```
 notifications/changelog/
@@ -2518,8 +2268,7 @@ notifications/changelog/
 
 RSS / Atom
 
-<!-- TODO: translate -->
-Sin servidor de feed, pull directo sobre carpetas públicas
+No feed server, direct pull over public folders
 
 ```
 trusteando/routing/
@@ -2527,8 +2276,7 @@ trusteando/routing/
 
 robots.txt / CORS
 
-<!-- TODO: translate -->
-Con semántica de autorización firmada y compatible con GDPR
+With signed authorization semantics compatible with GDPR
 
 ```
 trusteando/registry/
@@ -2536,8 +2284,7 @@ trusteando/registry/
 
 sitemap.xml
 
-<!-- TODO: translate -->
-Con firmas criptográficas y semántica de credencial
+With cryptographic signatures and credential semantics
 
 ```
 calculated/
@@ -2545,8 +2292,7 @@ calculated/
 
 Cache / ETag
 
-<!-- TODO: translate -->
-Auditable públicamente con checkIndex() — no solo para rendimiento
+Publicly auditable with checkIndex()—not just for performance
 
 ```
 externals/
@@ -2554,8 +2300,7 @@ externals/
 
 <a href> externo
 
-<!-- TODO: translate -->
-Declara explícitamente falta de control sobre el destino
+Explicitly declares lack of control over the destination
 
 ```
 routing/processors/
@@ -2563,8 +2308,7 @@ routing/processors/
 
 GDPR registro tratamiento
 
-<!-- TODO: translate -->
-Verificable criptográficamente, no solo declarativo
+Cryptographically verifiable, not just declarative
 
 ```
 private/
@@ -2572,19 +2316,17 @@ private/
 
 — (sin equivalente)
 
-<!-- TODO: translate -->
-Privacidad contextual con divulgación selectiva — no existe en la web
+Contextual privacy with selective disclosure—uncommon on the web
 
 
-<!-- TODO: translate -->
-La carpeta trusteando/redirect/ merece mención especial. A diferencia de un HTTP 301, un redirect en Trusteando es una declaración firmada de migración de identidad — con fecha, con referencia a la clave de emergencia usada, y formando parte del grafo histórico del nodo. No es solo una instrucción técnica de enrutamiento sino un hecho verificable con las mismas garantías que cualquier otra credencial del protocolo.
+The trusteando/redirect/ folder deserves special mention. Unlike an HTTP 301, a redirect in Trusteando is a signed declaration of identity migration—with date, reference to the emergency key used, and as part of the node's historical graph. It is not just a technical routing instruction but a verifiable fact with the same guarantees as any other credential in the protocol.
 
 
 ```
 trusteando/redirect/
-target          ← URL de destino (nueva identidad)
-permanent       ← bool — migración definitiva o temporal
-since           ← fecha de la migración
+target          ← destination URL (new identity)
+permanent       ← bool — definitive or temporary migration
+since           ← migration date
 migration_ref   ← referencia al proceso de migración en old_identities/
 
 
@@ -2595,14 +2337,11 @@ migration_ref   ← referencia al proceso de migración en old_identities/
 
 # Appendix F — Author Identity, Version Chain and Governance Model
 
-<!-- TODO: translate -->
-Este apéndice aplica el propio protocolo para establecer la identidad del autor, la cadena de autenticidad entre versiones del whitepaper, y el modelo de gobernanza inicial. Es a la vez una especificación y una demostración: el autor usa Trusteando para demostrar que es el autor de Trusteando.
+This appendix applies the protocol itself to establish the author's identity, the authenticity chain between whitepaper versions, and the initial governance model. It is both a specification and a demonstration: the author uses Trusteando to prove that they are the author of Trusteando.
 
-<!-- TODO: translate -->
-F.1 Identidad canónica del autor
+## F.1 Author's canonical identity
 
-<!-- TODO: translate -->
-La identidad del autor usa la modalidad autónoma definida en la sección 4.10. El identificador canónico h1 incorpora directamente la gramática del protocolo, lo que lo hace semánticamente verificable por cualquiera que entienda la especificación:
+The author's identity uses the autonomous mode defined in section 4.10. The canonical identifier h1 directly incorporates the protocol grammar, making it semantically verifiable by anyone who understands the specification:
 
 
 ```
@@ -2611,57 +2350,50 @@ h2 = hash(h1 + secret_v02)         ← hash público de esta versión
 h3 = hash(h1 + secret_disputes)    ← clave de disputas, independiente
 ```
 
-<!-- TODO: translate -->
-h1 es permanente y público: cualquiera puede calcularlo aplicando SHA-256 a la cadena literal. h2 cambia en cada versión y solo el autor puede generarlo porque requiere secret_v02, que nunca se publica. h3 es independiente de h2 — comprometer uno no compromete el otro.
+h1 is permanent and public: anyone can compute it by applying SHA-256 to the literal string. h2 changes with each version and only the author can generate it because it requires secret_v02, which is never published. h3 is independent of h2—compromising one does not compromise the other.
 
-<!-- TODO: translate -->
-La gestión de los secretos no requiere que ningún humano los memorice. El wallet de referencia (previsto en v0.2) los genera, los custodia en el enclave seguro del dispositivo, y distribuye copias cifradas a wallets colaboradores de confianza usando el propio protocolo. El autor otorga el rol de custodia publicando bajo su propia URL — nadie puede autoproclamarse custodio:
+Secret management does not require any human to memorize them. The reference wallet (planned in v0.2) generates them, stores them in the device's secure enclave, and distributes encrypted copies to trusted collaborating wallets using the protocol itself. The author grants custody roles by publishing under their own URL—no one can self-proclaim a custodian:
 
 
 ```
 author/s-w-c/
 ├── [w-c-1 secret-wallet-collaborator]/
-│   ├── since/2026-03-18/             ← inicio de la custodia
-│   └── [state trusteado]/          ← activo y verificado
+│   ├── since/2026-03-18/             ← custody start
+│   └── [state trusteado]/          ← active and verified
 ├── [w-c-2 secret-wallet-collaborator]/
 │   ├── since/2026-03-18/
 │   └── [state trusteado]/
 ├── [w-c-3 secret-wallet-collaborator]/
 │   ├── since/2026-03-18/
-│   └──                              ← vacío hasta que esté verificado
-└── [quorum 2]/                      ← mínimo para reconstruir el secreto
+│   └──                              ← empty until verified
+└── [quorum 2]/                      ← minimum to reconstruct the secret
 ```
 
-<!-- TODO: translate -->
-Si una custodia es revocada o comprometida, el autor elimina o actualiza la entrada bajo s-w-c/ y el estado pasa a brokenado. El ciclo de vida completo — otorgamiento, activación, revocación — usa exclusivamente la gramática estándar del protocolo. No hay APIs especiales ni tablas de permisos externas.
+If a custody is revoked or compromised, the author removes or updates the entry under s-w-c/ and the state becomes brokenado. The full lifecycle—granting, activation, revocation—uses exclusively the protocol’s standard grammar. There are no special APIs or external permission tables.
 
-F.2 Cadena de versiones
+## F.2 Version chain
 
-<!-- TODO: translate -->
-Cada versión del whitepaper publica su h2 y un migration_ref que la vincula con la versión anterior. Solo quien conocía el secreto de la versión anterior puede generar un migration_ref válido. La cadena es unidireccional: la versión N acredita a la versión N+1, nunca al revés.
+Each whitepaper version publishes its h2 and a migration_ref linking it to the previous version. Only someone who knew the previous version’s secret can generate a valid migration_ref. The chain is unidirectional: version N accredits version N+1, never the reverse.
 
 
 ```
 confidencenode.org/protocolos/trusteando/
 ├── v0.1/
-│   ├── h1/                       ← identidad canónica del autor
-│   └── h2/                       ← hash público v0.1
+│   ├── h1/                       ← author's canonical identity
+│   └── h2/                       ← v0.1 public hash
 ├── v0.2/
-│   ├── h1/                       ← mismo h1, permanente
-│   ├── h2/                       ← hash público v0.2
+│   ├── h1/                       ← same permanent h1
+│   ├── h2/                       ← v0.2 public hash
 │   ├── migration_ref/            ← hash(h2_v01 + h2_v02)
-│   └── [acredited-by]/v0.1/      ← solo la versión anterior acredita
-└── v0.N/  ← cada versión futura extiende la cadena del mismo modo
+│   └── [acredited-by]/v0.1/      ← only the previous version accredits
+└── v0.N/  ← each future version extends the chain likewise
 ```
 
-<!-- TODO: translate -->
-Un lector que encuentre el whitepaper en cualquier repositorio puede verificar su autenticidad consultando la cadena en confidencenode.org — no necesita confiar en el repositorio. Un documento que afirme ser v0.3 sin tener un migration_ref válido que lo vincule a v0.2 no es auténtico.
+A reader who finds the whitepaper in any repository can verify its authenticity by checking the chain on confidencenode.org—there is no need to trust the repository. A document claiming to be v0.3 without a valid migration_ref linking it to v0.2 is not authentic.
 
-<!-- TODO: translate -->
-F.3 Modelo de gobernanza inicial y transición al policentrismo
+## F.3 Initial governance model and transition to polycentrism
 
-<!-- TODO: translate -->
-El autor no activa su rol de root hasta que se cumplen simultáneamente un conjunto de condiciones de lanzamiento — condiciones expresadas en el propio protocolo usando calculate/maximum. Esta decisión es deliberada: no asumir responsabilidad institucional antes de que el sistema tenga las herramientas y los avales necesarios. La acreditación de nuevos roots usa la convención [agent role]: clave es el identificador del agente, valor es su rol en el ecosistema.
+The author does not activate their root role until a set of launch conditions are simultaneously met—conditions expressed in the protocol itself using calculate/maximum. This decision is deliberate: the author will not assume institutional responsibility before the system has the necessary tools and endorsements. Accrediting new roots uses the [agent role] convention: the key is the agent identifier, the value is its role in the ecosystem.
 
 
 ```
@@ -2669,8 +2401,8 @@ author/
 ├── h1/
 ├── [author-of Trusteando Protocol]/
 ├── [confidencenode0 root-founding-author]/confidencenode0/
-│   ├── [state verifiado]/          ← identidad establecida, root no activo aún
-│   └── from/calculate/maximum/      ← todas las condiciones deben cumplirse
+│   ├── [state verifiado]/          ← identity established, root not yet active
+│   └── from/calculate/maximum/      ← all launch conditions must be met
 │       ├── [time secure-wallet-is-ready]/
 │       ├── group-of-legal-experts-selected-for-launch/execution/[state ready]/
 │       ├── group-of-security-experts-selected-for-launch/execution/[state ready]/
@@ -2678,113 +2410,101 @@ author/
 ├── [spain root-national-agent]/spain-root-national-agent/
 ├── [france root-national-agent]/france-root-national-agent/
 ├── [eu root-supranational-agent]/eu-root-agent/
-└── [quorum 3]/               ← mínimo de roots para operaciones sensibles
+└── [quorum 3]/               ← minimum roots for sensitive operations
 ```
 
-<!-- TODO: translate -->
-La convención [agent role] es extensible sin límite. Cualquier entidad puede ser acreditada con cualquier rol. Los roles actuales son root-founding-author, root-national-agent, y root-supranational-agent, pero el protocolo no restringe el vocabulario. Cualquier verificador puede descubrir todos los roots activos buscando nodos con el sufijo -root- en su rol — sin consultar ningún registro central.
+The [agent role] convention is infinitely extensible. Any entity can be accredited with any role. The current roles are root-founding-author, root-national-agent, and root-supranational-agent, but the protocol does not restrict the vocabulary. Any verifier can discover all active roots by looking for nodes with the suffix -root- in their role—without consulting any central registry.
 
-<!-- TODO: translate -->
-La transición al policentrismo es irreversible por diseño: una vez que los agentes nacionales están acreditados y operando con quórum propio, el sistema no depende de la firma del autor para funcionar. El autor no puede recuperar control unilateral. La acreditación es un acto público, firmado, y permanente en el grafo.
+The transition to polycentrism is irreversible by design: once the national agents are accredited and operating with their own quorum, the system no longer depends on the author’s signature to function. The author cannot regain unilateral control. Accreditation is a public, signed, and permanent act in the graph.
 
-<!-- TODO: translate -->
-Cada grupo de expertos tiene su propia estructura interna. El autor nombra al grupo asignándole el rol approve-launch-conditions publicando bajo su propia URL. El grupo nombra a sus miembros y controla cuándo declara su aprobación publicando bajo la suya. Ninguna de las dos partes puede falsificar la acción de la otra:
+Each expert group has its own internal structure. The author names the group and assigns it the approve-launch-conditions role by publishing under their own URL. The group names its members and controls when it declares approval by publishing under its own URL. Neither party can fake the other’s action:
 
 
 ```
 author/[group-of-computer-science-experts-selected-for-launch approve-launch-conditions]/
-← el autor nombra al grupo y le asigna el rol
+← the author names the group and assigns the role
 
 group-of-computer-science-experts-selected-for-launch/
-├── [expert-1 is-member]/    ← el grupo nombra a sus miembros
+├── [expert-1 is-member]/    ← the group names its members
 ├── [expert-2 is-member]/
 ├── [expert-3 is-member]/
-├── [quorum 3]/              ← mínimo para la aprobación del grupo
-├── plan/[state approved]/        ← el grupo aprueba el plan
-└── execution/[state ready]/    ← el grupo declara condiciones satisfechas
+├── [quorum 3]/              ← minimum for the group's approval
+├── plan/[state approved]/        ← the group approves the plan
+└── execution/[state ready]/    ← the group declares conditions satisfied
 ```
 
-<!-- TODO: translate -->
-La separación de autoridades es total: el autor controla quién es el experto, el experto controla cuándo aprueba. Cuando los tres grupos hayan publicado [state ready] bajo sus propias URLs, y el wallet esté listo, calculate/maximum evaluará todas las condiciones como satisfechas y el root quedará activo automáticamente — sin ningún acto adicional del autor.
+The separation of authorities is total: the author controls who the experts are, the experts control when they approve. When the three groups have published [state ready] under their own URLs, and the wallet is ready, calculate/maximum will evaluate all conditions as satisfied and the root will become active automatically—without any additional act by the author.
 
-F.4 Ejemplo ilustrativo de estructura interna de un agente nacional (no normativo)
+## F.4 Illustrative example of an internal structure for a national agent (non-normative)
 
-<!-- TODO: translate -->
-Las decisiones de gobernanza interna de cada agente nacional son soberanas. El protocolo no impone ningún modelo. El siguiente ejemplo es puramente ilustrativo — una posible estructura que un estado podría adoptar como punto de partida, adaptándola libremente a su marco jurídico e institucional.
+The internal governance decisions of each national agent are sovereign. The protocol imposes no model. The following example is purely illustrative—a possible structure a state could adopt as a starting point, freely adapting it to its legal and institutional framework.
 
 
 ```
 spain-root-national-agent/
-├── [acredited-by]/author/          ← acreditado por el autor fundador
-├── [quorum 3]/                    ← quórum interno para operaciones sensibles
-├── [sepe root-domain-agent]/sepe-root/   ← agente de dominio: empleo
-├── [mec root-domain-agent]/mec-root/    ← agente de dominio: educación
-├── [aeat root-domain-agent]/aeat-root/  ← agente de dominio: hacienda
+├── [acredited-by]/author/          ← accredited by the founding author
+├── [quorum 3]/                    ← internal quorum for sensitive operations
+├── [sepe root-domain-agent]/sepe-root/   ← domain agent: employment
+├── [mec root-domain-agent]/mec-root/    ← domain agent: education
+├── [aeat root-domain-agent]/aeat-root/  ← domain agent: taxation
 ├── regions/
 │   ├── [andalucia root-regional-agent]/andalucia-root/
 │   └── [catalunia root-regional-agent]/catalunia-root/
-└── [since 2027-01-01]/               ← fecha de activación del agente nacional
+└── [since 2027-01-01]/               ← national agent activation date
 ```
 
-<!-- TODO: translate -->
-En este ejemplo, el agente nacional español delega dominios sectoriales a ministerios y dominios territoriales a comunidades autónomas, cada una con su propio nodo y rol. La jerarquía es la que el estado decida — el protocolo solo provee la gramática. Un verificador externo que consulte spain-root-national-agent puede descubrir automáticamente todos los agentes subordinados sin ningún directorio central.
+In this example, the Spanish national agent delegates sectoral domains to ministries and territorial domains to autonomous communities, each with its own node and role. The hierarchy is whatever the state decides—the protocol only provides the grammar. An external verifier querying spain-root-national-agent can automatically discover all subordinate agents without any central directory.
 
-<!-- TODO: translate -->
+
 F.5 Ejemplo ilustrativo: suscripción de España al protocolo mediante publicación en el BOE (no normativo)
 
-<!-- TODO: translate -->
-El Boletín Oficial del Estado es el mecanismo de publicidad jurídica oficial de España. Cualquier acto publicado en el BOE tiene validez legal en el ordenamiento español. Su uso como ancla de suscripción al protocolo resuelve en un solo paso el problema del arranque institucional: la publicación en el BOE es la declaración oficial de adhesión y la prueba pública de la clave del agente nacional, verificable por cualquier ciudadano, empresa o administración.
+The Boletín Oficial del Estado is Spain’s official legal publicity mechanism. Any act published in the BOE has legal validity in the Spanish legal system. Its use as the anchoring point for protocol subscription solves the institutional bootstrap problem in one step: the publication in the BOE is the official declaration of adherence and the public proof of the national agent’s key, verifiable by any citizen, company, or administration.
 
-<!-- TODO: translate -->
-El flujo ilustrativo sería el siguiente. El Gobierno aprueba la adhesión al protocolo Trusteando mediante orden ministerial. La orden se publica en el BOE con el contenido mínimo necesario: la URL del nodo raíz nacional, la clave pública del agente, y el hash público que acredita la identidad. A partir de ese momento cualquier verificador puede consultar el BOE y el nodo directamente:
+The illustrative flow would be as follows. The Government approves adhesion to the Trusteando protocol through a ministerial order. The order is published in the BOE with the minimum necessary content: the national root node’s URL, the agent’s public key, and the public hash that confirms the identity. From that moment, any verifier can consult the BOE and the node directly:
 
 
 ```
 boe.es/trusteando/
 ├── identity/
-│   ├── public_key/                  ← clave pública del agente nacional
-│   ├── hash_publico/               ← prueba de identidad autónoma
-│   └── [boe-ref BOE-A-2027-XXXX]/    ← referencia a la publicación oficial
-├── [acredited-by]/author/         ← acreditado por el autor fundador
-├── [state trusteado]/            ← nodo activo y verificado
+│   ├── public_key/                  ← national agent’s public key
+│   ├── hash_publico/               ← autonomous identity proof
+│   └── [boe-ref BOE-A-2027-XXXX]/    ← reference to the official publication
+├── [acredited-by]/author/         ← accredited by the founding author
+├── [state trusteado]/            ← active and verified node
 ├── since/2027-01-01/
-├── registry/                      ← registro de nodos reconocidos por España
+├── registry/                      ← register of nodes recognized by Spain
 │   ├── [uma root-domain-agent]/university-malaga/
 │   ├── [ucm root-domain-agent]/university-complutense/
 │   └── [aeat root-domain-agent]/aeat-root/
 ```
 
-<!-- TODO: translate -->
-La referencia [boe-ref BOE-A-2027-XXXX] vincula el nodo digital con el acto jurídico oficial. Un ciudadano, una empresa o un tribunal puede consultar el BOE, encontrar la orden ministerial, y verificar criptográficamente que el nodo en boe.es/trusteando es exactamente el que el Gobierno declaró en esa fecha. La prueba de identidad tiene dos capas independientes: la criptográfica (hash_publico) y la jurídica (publicación en el BOE). Comprometer una no compromete la otra.
+The reference [boe-ref BOE-A-2027-XXXX] links the digital node with the official legal act. A citizen, company, or court can consult the BOE, find the ministerial order, and cryptographically verify that the node at boe.es/trusteando is exactly the one the Government declared on that date. The identity proof has two independent layers: the cryptographic (hash_publico) and the legal (publication in the BOE). Compromising one does not compromise the other.
 
-<!-- TODO: translate -->
-Este mismo mecanismo es aplicable a cualquier país con un registro oficial equivalente al BOE: el Diario Oficial de la Unión Europea, el Journal Officiel francés, el Bundesanzeiger alemán. La publicación oficial nacional es el puente entre el sistema jurídico preexistente y el protocolo. No hace falta crear nueva infraestructura legal — basta con usar la que ya existe.
+The same mechanism applies to any country with an official register equivalent to the BOE: the Official Journal of the European Union, the Journal Officiel in France, the Bundesanzeiger in Germany. The national official publication is the bridge between the preexisting legal system and the protocol. There is no need to create new legal infrastructure—just use what already exists.
 
-<!-- TODO: translate -->
-F.6 Ejemplo ilustrativo: suscripción de Estados Unidos mediante el Federal Register (no normativo)
 
-<!-- TODO: translate -->
-El equivalente americano del BOE es el Federal Register, el diario oficial del gobierno federal de Estados Unidos. Sin embargo, el sistema institucional americano tiene una particularidad relevante para el protocolo: la autoridad está distribuida desde el origen entre agencias federales independientes con competencias técnicas específicas. Esto hace que el modelo americano sea naturalmente policéntrico desde el arranque — en lugar de un único agente nacional, varias agencias pueden actuar como roots de dominio independientes desde el primer día.
+## F.6 Illustrative example: United States subscribing via the Federal Register (non-normative)
+
+The American equivalent of the BOE is the Federal Register, the official journal of the federal government of the United States. However, the American institutional system has a relevant particularity for the protocol: authority is distributed from the origin among independent federal agencies with specific technical competencies. This makes the American model naturally polycentric from the start—rather than a single national agent, several agencies can act as independent domain roots from day one.
 
 
 ```
 federalregister.gov/trusteando/
 ├── identity/
 │   ├── public_key/
-│   └── [fr-ref FR-2027-XXXXX]/        ← referencia al Federal Register
+│   └── [fr-ref FR-2027-XXXXX]/        ← reference to the Federal Register
 ├── [acredited-by]/author/
 ├── [state trusteado]/
 ├── since/2027-01-01/
-├── [quorum 3]/                    ← quórum mínimo entre agencias
+├── [quorum 3]/                    ← minimum quorum among agencies
 └── registry/
-├── [nist root-domain-agent]/nist-root/     ← estándares técnicos
-├── [ftc root-domain-agent]/ftc-root/       ← protección del consumidor
-├── [ed root-domain-agent]/dept-education-root/  ← credenciales académicas
-└── [mit root-domain-agent]/mit-root/       ← ejemplo: instituciones académicas
+├── [nist root-domain-agent]/nist-root/     ← technical standards
+├── [ftc root-domain-agent]/ftc-root/       ← consumer protection
+├── [ed root-domain-agent]/dept-education-root/  ← academic credentials
+└── [mit root-domain-agent]/mit-root/       ← example: academic institutions
 ```
 
-<!-- TODO: translate -->
-La diferencia estructural respecto al modelo español es ilustrativa de cómo el protocolo se adapta a sistemas institucionales distintos. España centraliza en el BOE y delega hacia abajo. Estados Unidos distribuye desde el origen entre agencias independientes con autoridad propia. En ambos casos el mecanismo de publicación es el mismo — la URL del registro oficial como ancla jurídica — pero la topología del grafo resultante refleja la arquitectura institucional real de cada país.
+The structural difference with respect to the Spanish model illustrates how the protocol adapts to different institutional systems. Spain centralizes in the BOE and delegates downward. The United States distributes authority from the origin among independent agencies. In both cases the publication mechanism is the same—the official register URL as the legal anchor—but the resulting graph topology reflects each country’s real institutional architecture.
 
 
 
@@ -2798,17 +2518,16 @@ La diferencia estructural respecto al modelo español es ilustrativa de cómo el
 - W3C Verifiable Credentials Data Model: W3C Recommendation, 2022
 - W3C Decentralised Identifiers (DIDs): W3C Recommendation, 2022
 - TLS 1.3 — Transport Layer Security: RFC 8446, Rescorla, 2018
-- <!-- TODO: translate --> eIDAS — Reglamento (UE) 910/2014 sobre identificación electrónica, 2014
+- eIDAS — Regulation (EU) 910/2014 on electronic identification, 2014
 - GNU General Public License v3: Free Software Foundation, 2007
 
 Autor: confidencenode.org/members/confidencenode0  —  confidencenode.org/protocolos/trusteando
 
 18 de Marzo de 2026  —  v0.1  —  ConfidenceNode  —  confidencenode.org
 
-Trusteando es software libre licenciado bajo GNU GPL v3.
+Trusteando is free software licensed under the GNU GPL v3.
 
-<!-- TODO: translate -->
-El protocolo es abierto. Cualquiera puede implementarlo, verificarlo, y construir sobre él.
+The protocol is open. Anyone can implement it, verify it, and build on top of it.
 
 trusteando.app  —  github.com/ConfidenceNode
 
@@ -2817,9 +2536,8 @@ Autor: confidencenode.org/members/confidencenode0  —  confidencenode.org/proto
 
 18 de Marzo de 2026  —  v0.1  —  ConfidenceNode  —  confidencenode.org
 
-Trusteando es software libre licenciado bajo GNU GPL v3.
+Trusteando is free software licensed under the GNU GPL v3.
 
-<!-- TODO: translate -->
-El protocolo es abierto. Cualquiera puede implementarlo, verificarlo, y construir sobre él.
+The protocol is open. Anyone can implement it, verify it, and build on top of it.
 
 trusteando.app  —  github.com/ConfidenceNode
