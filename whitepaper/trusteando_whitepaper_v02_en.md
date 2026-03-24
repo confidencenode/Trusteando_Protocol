@@ -2428,6 +2428,22 @@ This is documented honestly in Appendix F, where the governance model is describ
 
 Verifiers in this phase should treat the protocol’s decentralisation as a property of the design, not a property of the current deployment. As the network of independent roots grows, the practical level of decentralisation will increase. Until then, a degree of trust in the founding infrastructure is unavoidable.
 
+## 13.10 Integrity vs Veracity — The Protocol is a Messenger, not a Judge
+
+The protocol provides three guarantees: integrity (the data has not changed since publication), authorship (only the key holder could have published this), and temporality (when each fact was valid). It does not provide a fourth: veracity — whether the fact is true.
+
+This is the correct boundary. HTTP delivers bits without judging their truth. Trusteando delivers signed claims without judging their credibility. The protocol is the transport layer; veracity is an application-layer concern.
+
+If the protocol mandated a method for determining truth, it would become a tool of censorship — whoever controls the truth algorithm controls what can be believed. By limiting itself to integrity and authorship, the protocol remains a tool of transparency: it shows what was claimed, by whom, and when, without prescribing what to believe.
+
+Veracity is an emergent property of the graph, calculated by each verifier according to their own trust model. A verifier may weight sources by historical accuracy, by institutional authority, by quorum agreement among independent nodes, or by any other method appropriate to their domain. These **Trust Inference** implementations — Bayesian propagation, Dempster-Shafer evidence aggregation, reputation scoring — are applications built on top of the protocol, not part of the protocol itself.
+
+The relationship is the same as PageRank to HTTP: PageRank is an algorithm that runs over the web graph and produces relevance scores. It is not part of HTTP. Trusteando provides the graph; Trust Inference engines provide the scores.
+
+This distinction has a practical consequence for the ecosystem: there will be competing Trust Inference implementations. Conservative verifiers for high-stakes medical decisions. Risk-tolerant verifiers for low-stakes commercial interactions. Sector-specific engines calibrated for legal, financial, or educational contexts. Each competes on the quality of its judgment, not on control of the underlying facts. The protocol enables this competition by refusing to participate in it.
+
+The first Trust Inference specification — **Trusteando-Inference v0.1** — is a natural next document in this ecosystem. It will define the interface between the graph and inference engines, without prescribing which engine to use.
+
 ---
 
 # 14. Roadmap
@@ -2552,6 +2568,21 @@ A graph built from human assertions reflects human reality, including its contra
 Opaque systems do not eliminate errors — they hide them. A disqualified professional who continues practising, a fraudulent degree that passes unchecked, an institution that knows of a problem and delays publishing it — these failures exist today, in every sector, precisely because the information is fragmented, siloed, and invisible to the parties who need it.
 
 Trusteando does not promise to make the world honest. It promises to make inconsistencies harder to sustain in silence. When assertions are public, signed, and timestamped, contradictions become visible to anyone who looks. In many cases that visibility is enough: organisations confronted with a public discrepancy between their records and another institution's have a reason to act that they did not have before. The protocol does not resolve disputes automatically. It makes them harder to ignore indefinitely — and that, in practice, is often the most important step.
+
+### The three properties the protocol provides — and the one it does not
+
+It is worth naming this distinction explicitly:
+
+| Property | Provided by | Mechanism |
+|---|---|---|
+| **Integrity** | The protocol | Cryptographic signature — the data has not changed since publication |
+| **Authorship** | The protocol | `verify_child_authorship` — only the key holder could have published this |
+| **Temporality** | The protocol | `since/` and `until/` — when each fact was valid |
+| **Veracity** | Not the protocol | A human or system judgment — whether the fact is true |
+
+The protocol guarantees the first three. Veracity — whether the hospital's allergy record is accurate, whether the university's degree record is correct — is an emergent property of the graph that each verifier calculates according to their own trust map.
+
+This is not a gap to be filled by the protocol. It is the correct boundary. A future **Trust Inference Layer** — a separate specification built on top of Trusteando — could formalise how verifiers assign credibility weights to sources, propagate trust transitively through the graph, and resolve contradictions probabilistically using Bayesian inference or Dempster-Shafer evidence theory. That layer would be to Trusteando what PageRank is to HTTP: an algorithm that runs over the graph, not part of the graph itself. The protocol provides the substrate; the inference layer provides the judgment.
 
 ---
 
