@@ -1205,5 +1205,173 @@ students/
 
 ---
 
+---
+
+## 26. Soft Deletion — the `archive/` Convention
+
+Trusteando is append-only: nodes cannot be deleted. The `archive/` convention signals that a child is no longer active without cryptographically revoking it.
+
+### archive/ vs revoked/ vs until/
+
+| Mechanism | Meaning | Reversible? | Use when |
+|---|---|---|---|
+| `until/` | The relation was valid until this date | No | Planned end of temporal relation |
+| `revoked/` | The key or credential is invalidated | No | Disciplinary action, key compromise |
+| `archive/` | The node is no longer active but remains valid | Yes — `unarchived/` | End of activity without invalidation |
+
+`archive/` does not invalidate a credential. A professor who retires is not revoked — they are archived. Their credentials remain valid.
+
+### Syntax
+
+```
+professors/
+├── juan-ruiz/
+│   ├── since/2010-09-01/
+│   └── archive/since/2026-06-30/      ← retired
+├── ana-garcia/
+│   └── since/2023-01-01/              ← active
+└── signed-members/
+```
+
+A parser implementing `members()` excludes archived nodes the same way it excludes nodes with expired `until/`. The archive can be reversed:
+
+```
+professors/juan-ruiz/
+├── since/2010-09-01/
+├── archive/since/2026-06-30/
+└── unarchived/since/2026-09-01/
+    └── [role emeritus]/
+```
+
+### Rules
+
+- `archive/` is published by the **parent node**, not the child.
+- `archive/since/` is required — a bare `archive/` is not valid.
+- `archive/` does not change the node's key. The node can still respond to challenges.
+- `archive/` does not affect `history()`.
+- Archiving a parent does **not** automatically archive its children.
+
+### archive/ vs private/
+
+`private/` hides a relation from external verifiers. `archive/` preserves public visibility but signals inactivity. Use `private/` when the relation is sensitive. Use `archive/` when the relation is public but the activity has ended.
+
+---
+
+## 27. Canonical Permanent Identifier — `[cpi]`
+
+The canonical path of a node is controlled by its parent. If the parent restructures, the path may change or disappear. The `[cpi]` convention provides a stable, portable alias that survives path changes.
+
+### Self-declared CPI
+
+```
+juan-ruiz.es/trusteando/identity/
+├── [cpi:prof-juan-ruiz-2010]/
+├── [official-name "Juan Ruiz García"]/
+└── since/2010-01-01/
+```
+
+External references use the CPI path, which Juan controls:
+
+```
+agreement-xyz/trusteando/
+└── [participant extern/juan-ruiz.es/trusteando/identity/[cpi:prof-juan-ruiz-2010]]/
+```
+
+### Institution-issued CPI
+
+```
+uma.es/trusteando/professors/juan-ruiz/
+└── [cpi:uma-prof-2010-0042]/
+```
+
+The institution maintains a resolution registry:
+
+```
+uma.es/trusteando/cpi-registry/
+└── [id:uma-prof-2010-0042]/
+    └── [current-path professors/juan-ruiz]/
+```
+
+### Canonical form convention
+
+```
+[cpi:type-issuer-year-sequence]
+
+[cpi:prof-uma-2010-0042]
+[cpi:student-uma-2024-18501]
+[cpi:org-confidencenode-2026-1]
+```
+
+### Rules
+
+- A CPI is opaque — no required internal structure beyond uniqueness within the issuing namespace.
+- CPIs are unique within the **issuing node's namespace**, not globally.
+- A CPI is a **convenience alias**, not a cryptographic anchor. The canonical identity is always the key derivation chain.
+- CPIs are public by default. A CPI revealing a sensitive association should be placed under `private/`.
+
+---
+
+## 28. Multi-language Labels — `[label:lang "..."]`
+
+Relation and property names use English (§1.1) for machine-parseable paths. The `[label:lang "..."]` convention provides human-readable display strings in multiple languages without changing the canonical path.
+
+### Syntax
+
+```
+uma.es/trusteando/professors/juan-ruiz/
+├── [label:es "Juan Ruiz García, Profesor Titular"]/
+├── [label:en "Juan Ruiz García, Associate Professor"]/
+└── [label:de "Juan Ruiz García, Außerordentlicher Professor"]/
+```
+
+Language codes follow ISO 639-1 (`es`, `en`, `fr`, `de`, `ca`, `pt`, etc.).
+
+### [label:lang] vs [name] vs [official-name]
+
+| Convention | Use when |
+|---|---|
+| `[name "Juan Ruiz"]` | Single canonical display name, language-agnostic |
+| `[official-name "..."]` | Legal or institutional name |
+| `[label:es "..."]` | Localised display string for a specific language |
+
+### Labels inside fields {} schemas
+
+```
+registration/fields {
+    date     is-type date
+    dni      is-type dni-es         [label:es "DNI" label:en "National ID"]
+    name     is-type string         [label:es "Nombre completo" label:en "Full name"]
+    type     is select-one-from { brokenado, verifiado, trusteado }
+}
+```
+
+### Canonical multilingual example
+
+```
+universidad-malaga/trusteando/
+├── identity/
+│   ├── [official-name "Universidad de Málaga"]/
+│   ├── [label:es "Universidad de Málaga"]/
+│   ├── [label:en "University of Malaga"]/
+│   └── [acronym "UMA"]/
+├── departments/
+│   └── computer-science/
+│       ├── [label:es "Ciencias de la Computación"]/
+│       └── [label:en "Computer Science"]/
+└── [state trusteado]/
+```
+
+### Rules
+
+- A node may publish labels in any number of languages.
+- Fallback order when user's language is unavailable: `[name]`, then `[label:en]`, then raw path segment.
+- `[label:lang]` values are **display strings only** — no effect on path resolution, key derivation, or verification.
+- Labels are public by default. Place under `private/` if the label itself reveals sensitive information.
+- Labels that are identical across languages do not need to be repeated.
+
+### Relation to discovery
+
+Published `[label:lang]` values are indexable by external search engines. A user searching for "Universidad de Málaga" finds `uma.es` because its `[label:es]` matches — without any central name registry. This is the Option C model from whitepaper §12.10.
+
 *This is a living document. Conventions evolve with practice.*
 *confidencenode.org/protocolos/trusteando — Style Guide v0.3*

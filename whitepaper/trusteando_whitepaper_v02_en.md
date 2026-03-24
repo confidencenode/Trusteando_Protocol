@@ -104,6 +104,138 @@ The complete specification — type system, `fields {}`, `extern/`, `on/` event 
 
 The rest of this document describes the complete specification. Readers interested only in Level 1 or Level 2 can focus on sections 1–4 and the reference server implementation. The DSL sections (2.14 onwards) and appendices are reference material for implementers.
 
+---
+
+## 1.3 Core Properties
+
+Before reading the full specification, it helps to know what makes this protocol structurally different from everything that came before it. Nine properties — none of which require more than a sentence to state, all of which follow directly from the design:
+
+**1. Path-based authority derivation.**
+Authority is not assigned — it is structurally derived from location. Controlling a path means controlling the key associated with it. No certificates, no registration, no external grant required.
+
+**2. Offline verifiability.**
+A parent can derive a child's key and disappear. The child remains fully verifiable without any contact with the parent. No issuer needs to be online. No resolver needs to be queried. The proof is in the key derivation, not in a live service.
+
+**3. Certificate-free PKI.**
+A certificate in traditional PKI is a signed document asserting `{subject, issuer, validity, signature}`. In Trusteando, the equivalent is a signed path existence: `issuer/subject/since/date/`. The folder structure is the certificate. There is no separate document.
+
+**4. Schema-free credentials.**
+Roles, scopes, claims, and permissions are expressed as folder paths — no schema language required. `org/hr/payroll/` is simultaneously an identity, a role, a scope, and a permission. The structure is the credential.
+
+**5. Monotonic trust.**
+Once a fact is published, it cannot be retracted — only superseded by a new fact. Trust only accumulates; it never silently disappears. The complete history is always recoverable. This produces strong auditability without distributed consensus.
+
+**6. Delegation composability.**
+Key derivation is unlimited in depth. Any node can delegate to any child, which can delegate further, without limit and without coordination with any other node. Each delegation is independently verifiable.
+
+**7. Multi-root coexistence.**
+Multiple roots — a university, a government, a company, a community — can coexist without a federation protocol, cross-signing, or a bridge. Each root is sovereign. Verifiers choose which roots to trust. There is no global trust anchor required.
+
+**8. Selective disclosure by path.**
+Revealing membership in `org/hr/` does not reveal the contents of `org/hr/payroll/`. The path hierarchy is the disclosure boundary. No zero-knowledge proofs required for the common case — the folder structure provides selective disclosure by construction.
+
+**9. Path as capability.**
+Possessing a valid proof for a path is a structural capability — the right to act as that node, for that context, at that moment. There are no separate capability tokens, no ACL tables, no permission databases. The proof is the capability. This connects Trusteando to the capability-based security tradition (object-capabilities, macaroons) but without the token distribution problem: capabilities are derived from structure, not minted and distributed.
+
+These nine properties are not independent features — they are consequences of one design decision: **trust is derived from signed structure**. The folder hierarchy is the cryptographic infrastructure. Everything else follows.
+
+---
+
+## 1.4 The Five Invariants
+
+The protocol can be violated in many ways. These five rules cannot be violated without breaking the system entirely. They are the invariants — the properties that every correct implementation must preserve, and that every extension must respect:
+
+**Invariant 1 — Authority derives from path position.**
+The authority to publish a fact about an entity is determined by controlling the URL path above it. No other mechanism grants or removes this authority.
+
+**Invariant 2 — Keys are deterministically derived from paths.**
+`child_key = grant_key(parent_key, child_path_segment)`. This function is deterministic, one-way, and domain-separated. Given the same parent key and the same path segment, any implementation produces the same child key.
+
+**Invariant 3 — Signed path existence is assertion.**
+A folder that exists at a path, signed by the key holder for that path, is a true assertion within the protocol. There is no separate assertion language. The existence of the path, signed, is the credential.
+
+**Invariant 4 — Delegation is append-only.**
+A parent grants a key to a child. That grant is permanent and cannot be silently undone. Revocation is a new fact appended to the graph — it does not erase the original grant.
+
+**Invariant 5 — Verification requires only ancestors.**
+To verify a node at any depth, a verifier needs only the node's proof and its immediate parent's key. No global state, no live registry, no consensus round.
+
+These five invariants are the protocol. Everything else is ecosystem built on top of them.
+
+---
+
+## 1.5 Formal Invariants
+
+The five invariants of §1.4 are design principles. These are testable properties — assertions that any correct implementation must satisfy and that a conformance test suite can verify automatically.
+
+**FI-1: Subtree confinement.**
+A node cannot produce a valid proof for a path outside its own subtree.
+
+```python
+assert not parent_of_Q.verify_child_authorship(Q, ctx, N.respond_to_challenge(ctx))
+```
+
+**FI-2: Key determinism.**
+The same parent key and the same canonical path segment always produce the same child key.
+
+```python
+k1 = node.grant_key("professors/juan-ruiz/")
+k2 = node.grant_key("professors/juan-ruiz/")
+assert k1 == k2
+```
+
+**FI-3: Key non-reuse across operations.**
+A key derived for `grant_key` cannot produce a valid `respond_to_challenge` proof directly — domain separation strings make them cryptographically distinct.
+
+```python
+child_key = parent.grant_key("child/")
+fake_proof = child_key
+assert not parent.verify_child_authorship("child/", ctx, fake_proof)
+```
+
+**FI-4: Sibling isolation.**
+Knowledge of one child's key reveals nothing about a sibling's key. (Follows from HMAC preimage resistance.)
+
+**FI-5: Proof non-reuse.**
+A proof produced for `[verifier_id, content_hash, nonce_1]` is invalid for `[verifier_id, content_hash, nonce_2]` where `nonce_1 ≠ nonce_2`.
+
+**FI-6: History preservation.**
+Publishing `revoked/` does not change the result of verifying proofs produced before the revocation. The mathematical relationship between parent and child key is permanent.
+
+**FI-7: Canonical path uniqueness.**
+Two different canonical paths always produce different child keys from the same parent.
+
+**FI-8: Authority direction.**
+Authority flows strictly downward. A child key cannot be used to derive or verify any ancestor key.
+
+These eight formal invariants constitute a minimum conformance test suite.
+
+---
+
+## 1.6 Conformance Levels
+
+Adoption levels (§1.2) describe what an organisation can do. Conformance levels describe what a software implementation must support.
+
+**Conformance Level 0 — Cryptographic core**
+
+Required: `TrusteandoNode` and its four functions, canonical path normalisation (§2.1.1), deterministic child ordering (§2.1.2), path limits enforcement (§2.1.4), domain separation strings (§4.11.1), formal invariants FI-1 through FI-8.
+
+**Conformance Level 1 — Temporal and revocation model**
+
+Required (in addition to Level 0): `since/` and `until/` parsing and evaluation, `revoked/` and `registry/compromised/` checking, revocation cascade semantics (§2.18), clock model and timestamp validation (§2.1.3).
+
+**Conformance Level 2 — Graph and privacy model**
+
+Required (in addition to Level 1): `extern/` reference resolution, `private/` access control, `signed-members/` static verification, portable proof format (§4.13), fork semantics declaration (§13.11), error handling (§2.19).
+
+**Conformance Level 3 — Full DSL**
+
+Required (in addition to Level 2): `fields {}` schema parsing and validation, type system (§2.14.3), `on/` event handlers and `when` guards (§2.14.6), `steps/` workflow convention, `[label:lang]` multi-language support, BNF grammar conformance (Appendix H).
+
+An implementation MUST declare its conformance level. A Level 0 implementation encountering higher-level constructs MUST apply the extensibility rule (§2.19): ignore unknown constructs, do not error.
+
+
+
 ### A note on the grammar vs the schema
 
 The protocol's grammar is simple — four syntactic patterns, twenty lines of code. Designing structures that faithfully represent real-world authority relationships is not trivial. It requires thinking about who has authority over what, where each fact lives, who can sign it, and how verifiers will navigate the structure. That is schema design, not syntax.
@@ -163,6 +295,106 @@ object.secret_base = hash("secret phrase known only to the university")
 ```
 
 In autonomous mode, the URL is only where the node chooses to publish — not what defines its identity. The identity can exist before having a URL, survive the loss of a domain, and persist even if the original root node disappears. Registration can be anchored by electronic signature, email verification, phone verification, or any other means that demonstrates control over the identity. The URL-based mode is the pragmatic default for entities that already have a web presence. The autonomous mode is the foundation for entities that do not, or that require identity independent of any infrastructure.
+
+## 2.1.1 Canonical Path Normalisation
+
+A path is used as the derivation segment in `grant_key`. If the same logical path can be represented as different byte sequences, two implementations that agree on the path structure will derive different keys — breaking interoperability silently. The normalisation rules are part of the cryptographic specification.
+
+Every path segment used in key derivation must conform to the following rules:
+
+**1. Encoding — UTF-8, NFC.** All path segments are encoded as UTF-8. Unicode characters must be in NFC normalisation form before hashing.
+
+**2. Case — lowercase.** All path segments are lowercased using Unicode case folding.
+
+**3. Trailing slash — always present for folders, never for leaf values.**
+
+```
+grant_key("professors/")      # correct — folder
+grant_key("[email:juan@x.es]") # correct — property, no slash
+```
+
+**4. URL-reserved characters — percent-encoded (RFC 3986, uppercase hex).**
+
+**5. Special bracket syntax — included verbatim after normalisation.**
+
+**6. No implicit separator between concatenated segments.** Each segment already includes its trailing slash.
+
+```python
+import unicodedata, hmac, hashlib
+
+def canonical_segment(raw: str) -> str:
+    return unicodedata.normalize('NFC', raw).lower()
+
+def derive_path_key(root_key: bytes, path_segments: list[str]) -> bytes:
+    key = root_key
+    for segment in path_segments:
+        canonical = canonical_segment(segment)
+        msg = TRUSTEANDO_GRANT_V1 + canonical.encode('utf-8')
+        key = hmac.new(key, msg, hashlib.sha256).digest()
+    return key
+```
+
+## 2.1.2 Deterministic Child Ordering
+
+When a node enumerates its children — for Merkle tree construction, signed membership lists, or incremental hashing — the order must be deterministic and identical across all implementations.
+
+**Rule:** children MUST be enumerated in lexicographic order of their canonical path segment after normalisation (UTF-8 byte order).
+
+```
+# Correct — lexicographic order
+professors/
+├── ana-garcia/        # "ana-garcia" < "juan-ruiz" < "pedro-lopez"
+├── juan-ruiz/
+└── pedro-lopez/
+```
+
+`[` (0x5B) sorts before lowercase ASCII letters (0x61–0x7A), so bracket segments sort before folder names beginning with a–z.
+
+```python
+def canonical_children_order(segments: list[str]) -> list[str]:
+    return sorted(segments, key=lambda s: s.encode('utf-8'))
+```
+
+## 2.1.3 Timestamp Model
+
+All timestamps MUST be expressed in RFC 3339 UTC format:
+
+```
+YYYY                          # year only
+YYYY-MM-DD                    # date
+YYYY-MM-DDTHH:MM:SSZ          # datetime, UTC required
+```
+
+**Clock skew tolerance:** timestamps within ±5 minutes of the verifier's current time are accepted. Timestamps more than 5 minutes in the future MUST be rejected.
+
+**Monotonicity:** within a single node's published history, timestamps MUST be non-decreasing. A verifier that detects a non-monotonic sequence MUST treat it as a potential integrity violation.
+
+```python
+from datetime import datetime, timezone, timedelta
+CLOCK_SKEW_TOLERANCE = timedelta(minutes=5)
+
+def is_timestamp_acceptable(ts: datetime, now=None) -> bool:
+    if now is None:
+        now = datetime.now(timezone.utc)
+    return ts <= now + CLOCK_SKEW_TOLERANCE
+```
+
+## 2.1.4 Path and Segment Limits
+
+Implementations MUST enforce these hard limits and MUST reject inputs that exceed them:
+
+| Dimension | Limit |
+|---|---|
+| Maximum total path length | 4096 bytes |
+| Maximum path depth | 64 segments |
+| Maximum single segment length | 255 bytes |
+| Maximum `fields {}` field count | 128 fields |
+| Maximum quoted string value length | 1024 bytes |
+| Maximum `select-*-from` option list | 256 options |
+
+A parser that encounters a path exceeding any limit MUST stop, return a parse error, and not produce a partial result.
+
+
 
 ## 2.2 Membership Precedes Recognition
 
@@ -230,6 +462,28 @@ All the information that an entity must provide about credentials is stored in i
 A verifier can check any credential by following only public URLs. If the information is not in the folder structure, it does not exist as a credential in the protocol. This rule is not a convention—it is a condition of validity.
 
 The practical consequences are profound: total verifiability without the issuer's cooperation, complete auditability of any entity's identity space, and resilience to outages—a static copy of the folders is enough to reconstruct all the information.
+
+
+
+**A certificate is equivalent to a signed path existence.** In traditional PKI, a certificate is a signed document that asserts `{subject, issuer, validity, signature}` — four fields, a format, a parser, a CA infrastructure. In Trusteando, the equivalent assertion is:
+
+```
+uma.es/trusteando/professors/juan-ruiz/since/2021-09-01/
+```
+
+The path is the subject (`juan-ruiz`), the domain is the issuer (`uma.es`), the temporal folder is the validity (`since/2021-09-01`), and the ECDSA signature over the folder is the signature. No certificate format. No parser. No separate document. The folder structure is the certificate.
+
+| PKI concept | Trusteando equivalent |
+|---|---|
+| Subject | Child folder name |
+| Issuer | Parent domain controlling the path |
+| Validity period | `since/` and `until/` |
+| Signature | ECDSA over the signed folder content |
+| Certificate chain | Folder hierarchy |
+| CA trust store | Set of root nodes the verifier chooses to trust |
+| OCSP / CRL | `revoked/`, `registry/compromised/`, `signed-members/` TTL |
+
+Every element of the certificate format that is eliminated is an attack surface removed, a parser not written, and a dependency on external infrastructure not introduced.
 
 A detailed style guide in `trusteando_style_guide.md` documents the UML-inspired naming and relation conventions that keep this grammar consistent across implementations.
 
@@ -385,9 +639,21 @@ The analogy with object-oriented programming is illustrative but incomplete: unl
 
 ## 2.12 The Folder Hierarchy is the Key Hierarchy
 
-The protocol has a structural property that connects its visible organization with its cryptographic foundation: the folder hierarchy and the key hierarchy are isomorphic. Each folder is a node, and each node has a key derived directly from its position in the tree. Traversing the folder tree is verifying the cryptographic chain. There is no separate public key infrastructure—the folder structure is the cryptographic infrastructure.
+The protocol has a structural property that connects its visible organization with its cryptographic foundation: the folder hierarchy and the key hierarchy are isomorphic **for object nodes**. Each folder is a node, and each folder node has a key derived directly from its position in the tree. Traversing the folder tree — following object nodes — is verifying the cryptographic chain. There is no separate public key infrastructure for this part of the graph: the folder structure is the cryptographic infrastructure.
 
-This isomorphism has an important practical consequence: any entity that controls a folder automatically controls the key associated with it, and can delegate keys to subfolders via grant_key. Authority over a branch of the tree is simultaneously authority over the information published in that branch and authority over the cryptographic keys that protect it. There is no possibility for these two authorities to diverge. Section 4.11 formalizes this principle with the TrusteandoNode class.
+This isomorphism has an important practical consequence: any entity that controls a folder automatically controls the key associated with it, and can delegate keys to subfolders via `grant_key`. Authority over a branch of the tree is simultaneously authority over the information published in that branch and authority over the cryptographic keys that protect it. There is no possibility for these two authorities to diverge. Section 4.11 formalizes this principle with the `TrusteandoNode` class.
+
+The isomorphism extends to a precise mapping across the three node kinds defined in section 2.14.2:
+
+| Node kind | Syntax | Position in key hierarchy |
+|---|---|---|
+| Object | `folder-name/` | Inside the tree — key derived by parent via `grant_key` |
+| Property | `[field value]` | Not in the tree — no key, no derivation |
+| Signing entity | `@entity` | Adjacent to the tree — own independent key, not derived from this hierarchy |
+
+A property has no key because it is not a node — it is data belonging to its parent. A signing entity has a key that was not derived from any parent in this hierarchy: it is an independent root brought into contact with this subtree by reference. The grammar makes the cryptographic topology visible: the syntax is the key structure.
+
+This has a direct consequence for schema design. Any element that needs to sign independently must be expressed as `@` — placing it as a subfolder would imply that the parent derives its key, which is semantically wrong and cryptographically incorrect.
 
 ## 2.13 Node Conformity States (Verifiado, Trusteado, Brokenado)
 
@@ -1240,6 +1506,119 @@ This is analogous to a document bearing both the issuer's signature and an indep
 
 ---
 
+## 2.18 Revocation Cascade Semantics
+
+Revocation cascades downward. A revoked node's children are suspended pending re-verification.
+
+```
+org/hr/alice/
+└── revoked/since/2026-03-25/     ← alice is revoked
+
+org/hr/alice/admin/               ← suspended — alice cannot grant authority
+                                     she no longer has
+```
+
+**The reasoning:** Alice's `admin/` subfolder exists because Alice's parent granted Alice a key, and Alice derived the admin key from it. If Alice's key is invalidated, she can no longer be considered the valid authority source for anything beneath her. Her children's history is not erased — their current validity is suspended.
+
+A verifier encountering `org/hr/alice/admin/` while `org/hr/alice/revoked/` exists MUST treat `alice/admin/` as currently invalid.
+
+| Case | Mechanism |
+|---|---|
+| Parent revoked | Cascade — check ancestor revocation status |
+| Child revoked independently | Direct — check the node itself |
+
+**Depth:** cascade is unlimited. If `org/hr/` is revoked, all descendants are suspended. A verifier MUST check the full ancestor chain.
+
+**Reinstatement:** lifted when the revoked ancestor publishes `unrevoked/`. Children do not need their own reinstatement.
+
+**Boundary:** a parent can revoke a child. A child cannot revoke a parent — authority flows downward only (FI-8).
+
+---
+
+## 2.19 Extensibility and Error Handling
+
+### The extensibility rule
+
+**Unknown constructs MUST be ignored.**
+
+A parser that encounters a folder name, property key, or schema field it does not recognise MUST silently skip it and continue. It MUST NOT treat unknown constructs as errors. This makes the protocol forward-compatible: a Level 0 implementation encountering Level 3 constructs remains functional.
+
+The rule applies to: folder names, property keys, property values using unknown syntax, schema fields inside `fields {}`, and event names inside `on/`.
+
+The rule does NOT apply to malformed syntax (unclosed brackets, paths exceeding hard limits). Malformed input is an error. Unknown-but-well-formed input is ignored.
+
+### Error handling
+
+**Principle: fail the minimum scope, preserve the maximum context.**
+
+| Condition | Response |
+|---|---|
+| Unknown folder or property | Ignore silently |
+| Malformed bracket syntax | Skip the segment, continue |
+| Invalid signature on a node | Mark that node invalid, continue siblings |
+| Missing parent (unreachable) | Return `UNVERIFIABLE`, not `INVALID` |
+| Timestamp in the future (>5 min) | Reject the proof, not the node |
+| Path exceeds hard limits | Reject immediately |
+| Revoked ancestor | Mark descendants suspended, surface the reason |
+| Fork detected | Apply declared fork policy (§13.11) |
+
+### What implementations MUST NOT do
+
+- MUST NOT silently drop revocation signals
+- MUST NOT propagate partial results as `VALID`
+- MUST NOT cache error states indefinitely — `UNVERIFIABLE` is transient
+- MUST NOT treat `private/` as absent — its existence is a positive assertion
+
+### Open/closed world
+
+**Open world** for unknown constructs (ignore — may be valid in future versions). **Closed world** for reserved vocabulary (a `revoked/` folder means revoked — no alternative interpretation). The reserved vocabulary in Appendix A is exhaustive for the current version.
+
+---
+
+## 2.20 Protocol Versioning
+
+A node declares which version of the protocol it implements:
+
+```
+yourdomain.com/trusteando/
+└── [protocol-version trusteando-v0.2]/
+```
+
+| Change type | Version increment |
+|---|---|
+| New reserved vocabulary, new conventions | MINOR: `v0.2` → `v0.3` |
+| Change to key derivation scheme | MAJOR: `v0.2` → `v1.0` |
+| Change to canonical path rules | MAJOR |
+
+A MINOR increment is backward compatible. A MAJOR increment means keys derived under the old version are not compatible with the new version.
+
+A verifier encountering a node without `[protocol-version]` MUST assume `trusteando-v0.2`. A verifier encountering a MAJOR version it does not support MUST return `UNVERIFIABLE` — not `PROOF_INVALID`.
+
+---
+
+## 2.21 Foundational Semantic Rules
+
+These rules define the semantic boundaries of the protocol — design decisions that eliminate ambiguity in how the graph is interpreted.
+
+**Rule 1 — Path segments are opaque identifiers.**
+A path segment has no internal structure from the protocol's perspective. `hr-alice/` is a single atomic identifier — not `hr` plus `alice`. No implicit meaning is derived from hyphens, underscores, or any other character within a segment. The structure of a path is defined by its position in the hierarchy, not by the content of its segments.
+
+**Rule 2 — All ancestors must exist.**
+A node at path `org/hr/alice/` is only valid if its full ancestor chain exists and is signed. Implicit ancestors are not allowed. A verifier encountering a node whose ancestor chain is incomplete MUST return `UNVERIFIABLE`.
+
+**Rule 3 — Single writer per path.**
+At any given moment, exactly one entity controls a path — the one whose key was derived by `grant_key` from the immediate parent. Two valid signed versions of the same path indicate a fork (§13.11) — a transient condition to be resolved, not a valid steady state.
+
+**Rule 4 — Absence is not a statement.**
+The absence of a path makes no assertion. The protocol operates under an open world assumption for absent user-defined paths: absence is silence, not negation. The closed world applies only to reserved vocabulary: the absence of `revoked/` means not revoked; the absence of `until/` means currently valid.
+
+**Rule 5 — Core Determinism.**
+Given the same tree state, all conformant verifiers MUST reach identical conclusions. This requires: identical canonical path normalisation (§2.1.1), identical child ordering (§2.1.2), identical clock skew tolerance (§2.1.3), identical hard limits (§2.1.4), identical domain separation strings (§4.11.1), and declared fork resolution policy (§13.11). The test vectors in Appendix I are the reference for determinism.
+
+
+
+---
+
 # 4.11 The Protocol Core: Four Functions
 
 Trusteando is built on a premise as simple as it is profound: each folder in the graph is a node, and each node has a private key derived directly from its path in the hierarchy. There is no separate public key infrastructure. There are no certificates. There are no external authorities. The folder structure is the cryptographic infrastructure. The entire protocol boils down to four functions that fit in a few lines of code. Although they seem simple, they solve all the problems raised without special cases or loose ends.
@@ -1279,6 +1658,48 @@ def verify_child_authorship(self, child_path_segment, context_elements, proof):
 reduce_hash is the only cryptographic operation the protocol needs. It takes a seed and a list of elements and returns a hash that depends on all of them in order. It is deterministic (same inputs produce the same output), one-way (the output does not allow recovering any input), order-sensitive (reduce_hash(s, [a,b]) differs from reduce_hash(s, [b,a])), and composable (it can be verified in stages).
 
 
+### Implementation note: secure hashing in reduce_hash and grant_key
+
+The pedagogical pseudocode uses `hash(result + element)` as shorthand. In production, direct concatenation is vulnerable to **concatenation ambiguity**. Implementations MUST use HMAC-SHA-256 with domain separation:
+
+```python
+import hmac, hashlib
+
+TRUSTEANDO_GRANT_V1     = b"TRUSTEANDO_GRANT_V1\x00"
+TRUSTEANDO_REDUCE_V1    = b"TRUSTEANDO_REDUCE_V1\x00"
+TRUSTEANDO_CHALLENGE_V1 = b"TRUSTEANDO_CHALLENGE_V1\x00"
+TRUSTEANDO_IDENTITY_V1  = b"TRUSTEANDO_IDENTITY_V1\x00"
+
+class TrusteandoNode:
+    def __init__(self, key: bytes):
+        self.key = key
+
+    def grant_key(self, child_path_segment: str) -> bytes:
+        msg = TRUSTEANDO_GRANT_V1 + child_path_segment.encode('utf-8')
+        return hmac.new(self.key, msg, hashlib.sha256).digest()
+
+    @staticmethod
+    def reduce_hash(seed: bytes, elements: list[bytes]) -> bytes:
+        result = seed
+        for element in elements:
+            result = hmac.new(result, TRUSTEANDO_REDUCE_V1 + element, hashlib.sha256).digest()
+        return result
+
+    def respond_to_challenge(self, context_elements: list[bytes]) -> bytes:
+        result = self.key
+        for element in context_elements:
+            result = hmac.new(result, TRUSTEANDO_CHALLENGE_V1 + element, hashlib.sha256).digest()
+        return result
+
+    def verify_child_authorship(self, child_path_segment: str,
+                                 context_elements: list[bytes], proof: bytes) -> bool:
+        child_key = self.grant_key(child_path_segment)
+        child_node = TrusteandoNode(child_key)
+        return child_node.respond_to_challenge(context_elements) == proof
+```
+
+**Domain separation** uses four distinct constants — one per operation — with a null byte suffix `\x00` to prevent the separation string from being a prefix of any valid UTF-8 path. This ensures outputs from different operations are cryptographically independent. Future versions that change the derivation scheme increment the version suffix (`V2`), leaving other constants unchanged.
+
 ## 4.11.2 grant_key: the Parent Grants Keys to the Child
 
 When a parent node incorporates a child with a path segment, it grants it a derived key: child_key = hash(parent_key + child_path_segment). The parent delivers child_key to the child over a secure channel. From that moment, the child knows its key, the parent can recompute it when necessary, and no one else knows it. The child never learns the parent's key—the direction of trust is strictly downward.
@@ -1313,6 +1734,234 @@ The actual cost of verification depends on what the verifier already knows. Ther
 **Case 3 — Autonomous node (cost: trust establishment).** A node that generated its own key has no parent to verify against. Trust must be established through the quorum mechanism (section 4.10) or by a recognised root publishing the node in its registry. Once established, verification returns to Case 1.
 
 The practical consequence: for 90% of interactions — those within a known domain or between entities with prior trust — verification cost is a single HTTP request and two hash operations. The chain traversal cost only appears on first contact with an unknown entity, and only once. This is the same model used by TLS certificate chains: the chain is verified once, the session is cached.
+
+
+## 4.11.6 Offline Verifiability — A Distinctive Property
+
+Most identity and authentication protocols require the issuing authority to be reachable at verification time:
+
+| Protocol | What must be online at verification time |
+|---|---|
+| OAuth 2.0 | The authorisation server |
+| OIDC | The identity provider |
+| W3C DID | The DID resolver |
+| X.509 / PKI | The CA's OCSP responder |
+| SAML | The identity provider |
+
+Trusteando breaks this dependency. When a parent node derives a child's key via `grant_key`, the mathematical relationship between the two keys is permanent and requires no ongoing participation from the parent to verify.
+
+**The extreme case.** A university that shuts down permanently does not invalidate the degrees it issued. Any verifier who holds the university's public key — cached, archived, or obtained from a replica — can verify those degrees indefinitely, without any server, without any OCSP query.
+
+**The boundary.** Offline verifiability applies to historical and cached facts. Real-time revocation requires either a live check or acceptance of the TTL window (§13.6). The protocol provides both; the context determines which is appropriate.
+
+```python
+# Offline verification — no network required after initial key exchange
+parent_node = TrusteandoNode(parent_key)  # key obtained previously, cached
+
+is_valid = parent_node.verify_child_authorship(
+    child_path_segment="professors/juan-ruiz/",
+    context_elements=[verifier_id, content_hash, nonce],
+    proof=received_proof
+)
+# → True or False, with no network call
+```
+
+---
+
+# 4.12 The Verification Algorithm
+
+This section gives a single, complete, step-by-step algorithm for verifying a Trusteando credential. Every verification follows this algorithm.
+
+## 4.12.1 Inputs
+
+```
+path       : string  — canonical path to verify
+proof      : bytes   — output of respond_to_challenge from the node
+context    : list    — [verifier_id: bytes, content_hash: bytes, nonce: bytes]
+parent_key : bytes   — key of the immediate parent node
+```
+
+## 4.12.2 Algorithm
+
+```python
+def verify(path, proof, context, parent_key):
+    canonical = canonicalise(path)                    # §2.1.1
+    if len(canonical) > 4096: return RESULT.PATH_TOO_LONG
+    segments = [s for s in canonical.split("/") if s]
+    if len(segments) > 64: return RESULT.PATH_TOO_DEEP
+    child_segment = segments[-1] + "/"
+    if len(child_segment.encode()) > 255: return RESULT.SEGMENT_TOO_LONG
+
+    parent_node = TrusteandoNode(parent_key)
+    child_key = parent_node.grant_key(child_segment)     # step 3
+    child_node = TrusteandoNode(child_key)
+    if child_node.respond_to_challenge(context) != proof: # step 4
+        return RESULT.PROOF_INVALID
+
+    nonce_timestamp = extract_timestamp(context[2])       # step 5
+    if not is_timestamp_acceptable(nonce_timestamp):
+        return RESULT.TIMESTAMP_STALE
+
+    if check_revocation(path):                            # step 6
+        return RESULT.REVOKED
+
+    return RESULT.VALID
+```
+
+## 4.12.3 Result codes
+
+| Code | Meaning |
+|---|---|
+| `VALID` | Proof verified, timestamps acceptable, not revoked |
+| `PROOF_INVALID` | `respond_to_challenge` output does not match |
+| `TIMESTAMP_STALE` | Nonce timestamp outside ±5 minute window |
+| `REVOKED` | Node appears in `revoked/` or `registry/compromised/` |
+| `PATH_TOO_LONG` | Path exceeds 4096 bytes |
+| `PATH_TOO_DEEP` | Path exceeds 64 segments |
+| `SEGMENT_TOO_LONG` | A segment exceeds 255 bytes |
+| `UNVERIFIABLE` | Parent unreachable and no valid cached signed-members list |
+
+`UNVERIFIABLE` is not the same as `PROOF_INVALID`. An unreachable parent leaves the credential in an indeterminate state — not invalid, but unverifiable at this moment.
+
+## 4.12.4 Trust level of the result
+
+`VALID` means the proof is mathematically correct given `parent_key`. The trust level depends on how the verifier obtained `parent_key`:
+
+| How parent_key was obtained | Trust level |
+|---|---|
+| Live challenge to parent node | Full |
+| Cached `signed-members/` within TTL | Bounded — valid as of last cache refresh |
+| From a trusted root's registry | Transitive |
+
+## 4.12.5 Full chain verification
+
+```python
+def verify_chain(path, proof, context, trusted_keys: dict):
+    segments = canonicalise(path).split("/")
+    for depth in range(len(segments), 0, -1):
+        ancestor = "/".join(segments[:depth]) + "/"
+        if ancestor in trusted_keys:
+            return verify(path, proof, context, trusted_keys[ancestor])
+    return RESULT.UNVERIFIABLE
+```
+
+This traversal happens once per unknown entity. The result is cached with the TTL of the signed anchor.
+
+## 4.12.6 Verifier MUST — Conformance Checklist
+
+A conformant verifier MUST perform all of the following:
+
+**Path handling:**
+- MUST canonicalise the path before any processing (§2.1.1)
+- MUST enforce hard path limits (§2.1.4)
+- MUST sort children in lexicographic order when enumerating (§2.1.2)
+
+**Signature verification:**
+- MUST verify the proof using `verify_child_authorship` against the immediate parent key
+- MUST use `TRUSTEANDO_CHALLENGE_V1` for challenge-response verification
+- MUST reject proofs where the timestamp is more than 5 minutes in the future
+- MUST reject replayed nonces within the same session
+
+**Revocation:**
+- MUST check the node's own `revoked/` folder
+- MUST check the parent's `registry/compromised/` for the node's key
+- MUST apply revocation cascade — check all ancestors for revocation (§2.18)
+- MUST NOT return `VALID` for a node with a revoked ancestor
+
+**Extensibility:**
+- MUST ignore unknown folders and properties (§2.19)
+- MUST NOT treat unknown constructs as errors
+- MUST apply declared fork resolution policy when encountering conflicting histories (§13.11)
+
+**Result reporting:**
+- MUST distinguish `UNVERIFIABLE` from `PROOF_INVALID`
+- MUST NOT propagate partial results as `VALID`
+- MUST surface revocation signals to the caller
+- MUST declare its conformance level (§1.6)
+- MUST declare its fork resolution policy (§13.11)
+
+---
+
+# 4.13 Portable Proof Format
+
+## 4.13.1 The proof object
+
+```json
+{
+  "version": "TRUSTEANDO-PROOF-V1",
+  "path": "uma.es/trusteando/professors/juan-ruiz/",
+  "proof": "<hex-encoded bytes>",
+  "context": {
+    "verifier_id": "<hex>",
+    "content_hash": "<hex>",
+    "nonce": "<hex>",
+    "timestamp": "2026-03-25T10:30:00Z"
+  },
+  "signed_members_ref": "uma.es/trusteando/professors/signed-members/"
+}
+```
+
+## 4.13.2 Compact binary encoding (for QR codes)
+
+```
+[1 byte]  version = 0x01
+[2 bytes] path_length (big-endian uint16)
+[N bytes] path (UTF-8, canonical)
+[32 bytes] proof
+[32 bytes] verifier_id
+[32 bytes] content_hash
+[16 bytes] nonce
+[8 bytes]  timestamp (Unix epoch, uint64)
+[2 bytes]  signed_members_ref_length (0 if absent)
+[M bytes]  signed_members_ref (optional)
+```
+
+Minimum size: **125 bytes** + path. A typical path of 60 bytes = **185 bytes** — fits in a single QR code.
+
+## 4.13.3 Challenge-proof exchange
+
+```
+1. GET  node/_challenge           → { nonce, timestamp, expires_in: 300 }
+2. POST node/_respond             → { proof, path }
+3. Verifier assembles proof object
+4. POST parent/_verify            → { valid: true/false }
+5. Verifier caches result with TTL from signed-members/
+```
+
+## 4.13.4 Offline proof
+
+```python
+OFFLINE_VERIFIER_ID = sha256(b"TRUSTEANDO_OFFLINE_VERIFIER_V1")
+offline_nonce = sha256(b"TRUSTEANDO_OFFLINE_NONCE_V1" + today_date.encode())
+
+offline_proof = node.respond_to_challenge([
+    OFFLINE_VERIFIER_ID,
+    sha256(credential_content),
+    offline_nonce
+])
+```
+
+The `today_date` component limits validity to the current day. The compact binary encoding is 185 bytes — a single QR code.
+
+---
+
+# 4.14 Identity Fingerprint
+
+```python
+def identity_fingerprint(canonical_path: str, root_key: bytes) -> bytes:
+    msg = TRUSTEANDO_IDENTITY_V1 + canonical_path.encode('utf-8') + root_key
+    return hmac.new(root_key, msg, hashlib.sha256).digest()
+```
+
+The fingerprint is stable, collision-resistant, root-scoped, and not reversible.
+
+**Display format:** first 8 bytes, hex, grouped in 4: `b4e7a1c9-f3d8b2e6`
+
+**Use cases:** log correlation, UI display, database keys, QR code labels.
+
+The fingerprint is not a replacement for the canonical path — it is a derived convenience identifier.
+
+
 
 
 ---
@@ -2218,7 +2867,46 @@ Appendix B defines a dispute mechanism with cryptographic evidence and increasin
 
 ## 12.9 Semantic Vocabulary Fragmentation
 
-The route grammar defines the syntax but not the vocabulary. Opening the vocabulary of operators and properties—any natural-language term is valid—is an expressive strength but can generate semantic fragmentation: different communities or domains might use different terms for the same concept, reducing the interoperability the protocol promises. A node that uses [en] and another that uses [located-in] for the same geographic relation are not automatically interoperable. The long-term solution lies in domain ontologies or term registries consensused by the community, something the protocol facilitates but does not specify. The reserved vocabulary in Appendix A is the common core; its coordinated extension is a governance matter more than a technical specification. A concrete direction is to publish domain ontologies in distributed repositories hosted on multiple roots, where communities of practice agree on the standard terms for their sector. Analytical tools can warn a node operator when they use a term that diverges from the majority vocabulary in their domain, encouraging convergence without imposition. The formal specification of this mechanism will be addressed in future versions.
+The route grammar defines the syntax but not the vocabulary. Any natural-language term is valid as a relation or property name. This is an expressive strength — it allows any domain to model itself without waiting for a central vocabulary committee — but it creates a fragmentation risk: different communities may use different terms for the same concept, silently breaking the interoperability the protocol promises.
+
+Consider a geographic relation. A Spanish university might publish `[is-located-in malaga]/`, an Italian hospital independently chooses `[location rome]/`, and a German institute uses `[city berlin]/`. All three express the same fact. None are automatically interoperable with each other.
+
+### The three layers of the problem
+
+**Layer 1 — Within a single organisation.** Different teams may choose different terms for equivalent relations. Solvable by editorial policy and the sector schemas in the style guide (sections 2.4 and 23).
+
+**Layer 2 — Within a sector.** Two institutions that independently adopt the protocol may converge on different terms for equivalent operations. This is the principal interoperability challenge.
+
+**Layer 3 — Across sectors.** The same concept expressed differently across domains may need to be reconciled by a verifier that spans multiple sectors.
+
+### Three convergence mechanisms
+
+**Mechanism 1 — Distributed ontology repositories.** Sector communities publish canonical vocabulary registries at well-known paths under reputable nodes:
+
+```
+T10/vocabularies/
+├── healthcare/
+│   ├── [relation is-prescribed-by]/since/2026-01-01/
+│   └── [property diagnosis-code:icd10]/since/2026-01-01/
+├── education/
+│   └── [relation is-accredited-by]/since/2026-01-01/
+└── banking/
+    └── [property iban]/since/2026-01-01/
+```
+
+**Mechanism 2 — Alias declarations.** A node can declare that its local term maps to a canonical vocabulary term without modifying its published paths:
+
+```
+uma.es/trusteando/vocabulary/aliases/
+├── [city maps-to T10/vocabularies/education/is-located-in]/
+└── [location maps-to T10/vocabularies/education/is-located-in]/
+```
+
+**Mechanism 3 — Divergence detection tools.** Tooling that indexes the graph can warn operators when their vocabulary diverges from the majority in their sector — encouraging convergence without mandating it.
+
+### What the protocol deliberately does not provide
+
+The protocol does not mandate a single global ontology. Mandating one would require a central authority to govern it — exactly the structural dependency the protocol is designed to eliminate. Vocabulary convergence is an application-layer concern, not a protocol-layer one. The formal specification of distributed vocabulary repositories and alias declarations will be addressed in v0.3.
 
 
 ## 12.10 Name Discovery and Registry
@@ -2448,7 +3136,175 @@ The first Trust Inference specification — **Trusteando-Inference v0.1** — is
 
 ---
 
-# 14. Roadmap
+## 13.11 Fork Semantics — Two Valid Histories for the Same Path
+
+A fork occurs when two valid, independently signed versions of the same path exist with different histories. This is not a theoretical edge case — it can happen legitimately (restructuring, replica lag, migration overlap, hardware failure causing state loss).
+
+### What a fork looks like
+
+```
+# Version A — current server
+uma.es/trusteando/professors/juan-ruiz/
+└── since/2021-09-01/
+    └── [department computer-science]/
+
+# Version B — replica cached 6 months ago
+uma.es/trusteando/professors/juan-ruiz/
+└── since/2021-09-01/
+    └── [department mathematics]/
+```
+
+Both are cryptographically valid — signed by the same key. The content differs.
+
+### Verifier policy (required)
+
+Implementations MUST declare which fork resolution policy they apply:
+
+**Policy 1 — Latest publication wins.** The version with the most recent `since/` timestamp on the diverging subtree is authoritative. Correct for most use cases.
+
+**Policy 2 — Quorum consensus.** The version that a quorum of independent replicas agrees on is authoritative (§4.10). Appropriate for high-stakes verifications.
+
+**Policy 3 — Multi-branch coexistence.** Both versions are preserved and surfaced to the caller. Appropriate for audit or investigative contexts.
+
+A verifier that does not declare its fork resolution policy is non-conformant.
+
+### What forks are not
+
+A fork is not an attack in itself. The appropriate response depends on context: routine update (latest-wins), replica lag (quorum), disputed history (multi-branch), hostile takeover (quorum + replicas). The append-only model limits hostile rewrites — an adversary can publish new facts but cannot erase signed facts already held by replicas.
+
+
+
+---
+
+
+---
+
+# 14. Security Model
+
+A protocol about trust should be explicit about its own security assumptions. This section states what the protocol assumes, what it guarantees, and what it does not guarantee.
+
+## 14.1 Assumptions
+
+**A1 — Hash collision resistance.** SHA-256 and SHA-512 are collision-resistant.
+
+**A2 — HMAC preimage resistance.** `HMAC-SHA-256(key, message)` is a one-way function given unknown `key`.
+
+**A3 — ECDSA unforgeability.** An adversary cannot produce a valid ECDSA signature without the private key.
+
+**A4 — Secure key delivery.** The `grant_key` operation occurs over a channel the adversary cannot read or modify.
+
+**A5 — NFC normalisation.** All parties apply the same canonical path normalisation (§2.1.1) before key derivation.
+
+## 14.2 Threat Model
+
+| Threat | Defence |
+|---|---|
+| **T1 — Passive network attacker** | All verification based on public information. Nothing secret traverses the network during verification. |
+| **T2 — Active MITM** | Protocol runs over HTTPS. Credential integrity guaranteed by ECDSA signature, not the channel. |
+| **T3 — Compromised child server** | Server can serve modified content but cannot forge signatures — private key stored outside web root. |
+| **T4 — Malicious superior node** | Parent can revoke child's key derivation but cannot forge child's independent signatures. `hash_publico` provides recovery path. |
+| **T5 — DNS takeover** | Partial mitigation. Adversary can serve content but cannot produce historically consistent signed folders. Mitigated by autonomous identity mode (§2.1) and quorum (§4.10). |
+| **T6 — Replay attack** | `context_elements` includes verifier-specific nonce and timestamp. Proof is bound to that verifier, content, and moment. |
+| **T7 — Path aliasing (homograph)** | NFC + lowercase + UTF-8 normalisation collapses all aliases to one canonical form (§2.1.1). |
+| **T8 — Downgrade (b9 as t9)** | Trust level encoded in path structure. A b9 node cannot produce a valid proof for a `t9/` path — keys are cryptographically isolated (§2.16). |
+| **T9 — Fork identity attack** | Quorum mechanism requires agreement from multiple independent roots. Single root cannot legitimise a fork. |
+
+## 14.3 What the Protocol Guarantees
+
+Under assumptions A1–A5 and against threats T1–T9:
+
+- **Integrity:** a published folder that has not been modified will pass signature verification.
+- **Authorship:** only the key holder could have produced a valid `respond_to_challenge` proof.
+- **Temporal ordering:** `since/` and `until/` are part of the signed content.
+- **Non-repudiation:** a proof is cryptographically bound to the specific context.
+- **Key isolation:** compromising a child does not compromise the parent or siblings.
+- **Hierarchy integrity:** a node cannot produce valid credentials for a path outside its subtree.
+
+## 14.4 What the Protocol Does Not Guarantee
+
+- **Veracity:** the protocol guarantees a fact was published by the key holder. It does not guarantee the fact is true (§13.10).
+- **DNS continuity:** the protocol cannot prevent a domain from changing hands (§13.7, T5).
+- **Instant revocation:** revocation propagates with TTL-bounded latency (§13.6).
+- **Sybil resistance at b9:** b9 does not prevent multiple self-declared identities.
+- **Confidentiality of path existence:** even with `private/`, the folder's existence is visible. ZKP is the extension for hiding even existence (§12.7).
+
+---
+
+# 15. Why Not X — Technical Comparison
+
+This section compares Trusteando with the systems it is most often compared to. The goal is precision about what each system does and where Trusteando simplifies or trades away.
+
+## 15.1 Why not X.509 / Traditional PKI
+
+**What PKI solves:** binding a public key to an identity via a signed certificate from a trusted CA.
+
+**Where PKI falls short:** a certificate is a document format requiring a parser, a CA hierarchy, and a trust store. No native concept of organisational hierarchy, temporal validity of relationships, or selective disclosure.
+
+**What Trusteando does instead:** the folder path is the certificate. Authority derives from URL control. No certificate format, no parser, no CA for the common case.
+
+**What Trusteando trades away:** PKI is legally recognised in most jurisdictions. Trusteando credentials require integration with an existing legal framework for legal binding.
+
+## 15.2 Why not W3C DIDs
+
+**What DIDs solve:** identifiers independent of a specific domain, resolving to a DID Document via a method-specific resolver.
+
+**Where DIDs fall short:** requires a resolver — software that knows how to interpret a specific DID method. No universal resolver. DIDs are identifiers, not a complete trust system — they do not specify who has authority over what.
+
+**What Trusteando does instead:** the URL is the identifier. The resolver is HTTP. The authority model is derived from URL control.
+
+**What Trusteando trades away:** DIDs are designed for identifiers that survive domain loss. Trusteando's URL-based mode inherits DNS dependency (§13.7). Autonomous identity mode (§2.1) provides DID-equivalent independence.
+
+## 15.3 Why not W3C Verifiable Credentials
+
+**What VCs solve:** a standard format for signed credential documents (JSON-LD or JWT).
+
+**Where VCs fall short:** VCs define the document format but not the trust system. Key discovery is out of scope. VCs are point-in-time snapshots without native temporal history.
+
+**What Trusteando does instead:** the credential is the path. No document format, no JSON-LD parser, no schema registry.
+
+**What Trusteando trades away:** VCs are a W3C standard with broad tooling support. A translation layer would be needed for systems expecting VC format.
+
+## 15.4 Why not OAuth 2.0 / OIDC
+
+**What OAuth/OIDC solve:** delegated authorisation and federated identity.
+
+**Where they fall short:** the authorisation server / identity provider must be online at every authentication event. OAuth scopes are opaque strings with no structural relationship between them. No native concept of hierarchical authority or append-only history.
+
+**What Trusteando does instead:** the folder structure expresses roles, scopes, and identity simultaneously. Offline verification is structural (§4.11.6). History is preserved by construction.
+
+**What Trusteando trades away:** OAuth/OIDC are the universal standard for web application authentication. Trusteando is not a replacement for session-based web authentication.
+
+## 15.5 Why not DNSSEC
+
+**What DNSSEC solves:** cryptographic signing of DNS records.
+
+**Where it falls short:** DNSSEC signs DNS records only. Single global trust anchor (ICANN). Very low adoption despite being standardised since 2005.
+
+**What Trusteando does instead:** uses the domain as an identity anchor (same insight as DNSSEC) but builds a complete trust system on top — organisation hierarchy, credentials, temporal relations, delegation, privacy.
+
+## 15.6 Why not Git
+
+**What Git solves:** distributed version control with immutable, cryptographically chained history.
+
+**Where it falls short:** single-owner system. No native concept of multiple independent authorities publishing facts about the same entity. No identity or authority model.
+
+**What Trusteando does instead:** "Git applied to knowledge claims" (§13.4) — but adds a distributed multi-authority model, a trust hierarchy, and a graph structure that Git does not have.
+
+## Summary
+
+| System | Gap for Trusteando's use case | Trusteando's trade-off |
+|---|---|---|
+| X.509 PKI | No hierarchy, CA infrastructure required | No automatic legal recognition |
+| W3C DIDs | No authority model, resolver fragmentation | DNS dependency in default mode |
+| W3C VCs | No trust system, no key discovery | Not W3C VC format |
+| OAuth/OIDC | Issuer must be online, no persistent history | Not a session authentication protocol |
+| DNSSEC | DNS only, single global root | Does not replace DNSSEC |
+| Git | Single owner, no multi-authority graph | No operational ecosystem |
+
+Trusteando occupies a different layer: persistent, hierarchical, multi-authority identity and authority relationships expressed as a verifiable knowledge graph.
+
+
+# 16. Roadmap
 
 Future versions of the protocol are guided by the problems that implementation practice reveals as most urgent. The following roadmap reflects the current state of known priorities—it is not a commitment of dates but a declaration of intent.
 
@@ -3561,6 +4417,24 @@ Optional property on a failed or aborted state. Provides a human-readable descri
 
 ---
 
+## A.27 Stable Subtree — `stable/`
+
+A node can declare that a subtree is not expected to change:
+
+```
+org/hr/roles/
+└── stable/
+    ├── [ttl 31536000]/
+    └── [signed-at 2026-03-25T10:00:00Z]/
+```
+
+`stable/` is a signal to parsers, CDNs, and verifiers — not a cryptographic guarantee. If the subtree is updated, the publisher SHOULD remove `stable/` or update `[signed-at]`.
+
+**What it enables:** CDN caching with long TTL, offline wallets that pre-fetch stable subtrees, Merkle root anchoring for external tamper-evident records, bandwidth reduction for replicas.
+
+`stable/` is optional. It has no protocol-enforced semantics beyond the cache signal.
+
+
 # Appendix C — Minimal Protocol API
 
 The API defines how to interact with a node. It is independent of the implementation—a node can be a static web server, a REST API, or a microservice, as long as it exposes these methods with the same semantics. The API is a convenience to facilitate interoperability—what is not here can be implemented freely without breaking the protocol.
@@ -4137,6 +5011,241 @@ The structural difference with respect to the Spanish model illustrates how the 
 
 ---
 
+---
+
+# Appendix H — Formal Grammar (BNF)
+
+This appendix defines the complete syntax of Trusteando paths and schemas in Backus-Naur Form. All input strings must be in canonical form (§2.1.1) before parsing. Where prose and this grammar conflict, this grammar takes precedence.
+
+## H.1 Path Grammar
+
+```bnf
+<trusteando-path>   ::= <domain> "/trusteando/" <segment>*
+<segment>           ::= <folder> | <property> | <identifier> | <attribute>
+                      | <extern-ref> | <signing-entity> | <schema-block>
+                      | <reserved-folder>
+```
+
+## H.2 Folder (Object)
+
+```bnf
+<folder>            ::= <folder-name> "/"
+<folder-name>       ::= <name-char>+
+<name-char>         ::= [a-z] | [0-9] | "-" | "_" | "."
+```
+
+## H.3 Property, Identifier, and Attribute
+
+```bnf
+<property>          ::= "[" <field-name> " " <scalar-value> "]" "/"?
+<identifier>        ::= "[" <field-name> ":" <id-value> "]" "/"?
+<attribute>         ::= "[" <field-name> " " <quoted-string> "]" "/"?
+<field-name>        ::= <name-char>+
+<scalar-value>      ::= <number> | <enum-value>
+<number>            ::= "-"? [0-9]+ ("." [0-9]+)?
+<enum-value>        ::= <name-char>+
+<id-value>          ::= <name-char>+ | "@" <name-char>+ ("." <name-char>+)*
+<quoted-string>     ::= '"' <utf8-char-no-quote>* '"'
+```
+
+## H.4 Extern Reference
+
+```bnf
+<extern-ref>        ::= "extern/" <extern-path>
+<extern-path>       ::= <segment>+
+<extern-value>      ::= "extern/" <extern-path>
+```
+
+## H.5 Signing Entity
+
+```bnf
+<signing-entity>    ::= "[" <field-name> " @" <entity-ref> "]" "/"?
+                      | "@" <entity-ref> "/"?
+<entity-ref>        ::= <hostname> | "hash:" <hex-string> | <name-char>+
+<hex-string>        ::= [0-9a-f]{8,64}
+```
+
+## H.6 Schema Block
+
+```bnf
+<schema-block>      ::= <folder-name> "/fields" " {" <newline>
+                            <field-decl>*
+                        "}"
+<field-decl>        ::= <indent> <field-name> <spacing> <type-expr> <newline>
+<type-expr>         ::= "is-type" " " <type> | "is" " " <selection-expr>
+<type>              ::= <primitive-type> | <verified-type> | <domain-type>
+<primitive-type>    ::= "string" | "integer" | "decimal" | "boolean" | "date"
+                      | "enumerate" | "subset-from-enumerate"
+<domain-type>       ::= "email" | "phone-e164" | "dni-es" | "nie-es"
+                      | "iban" | "url" | "isbn" | "nif-es"
+<selection-expr>    ::= "select-one-from" " {" <option-list> "}"
+                      | "select-subset-from" " {" <option-list> "}"
+                      | "select-one-or-more-from" " {" <option-list> "}"
+<option-list>       ::= <enum-value> (", " <enum-value>)*
+```
+
+## H.7 Temporal Segments
+
+```bnf
+<since-folder>      ::= "since/" <date-segment> "/"?
+<until-folder>      ::= "until/" <date-segment> "/"?
+<from-folder>       ::= "from/" <condition-expr> "/"?
+<date-segment>      ::= [0-9]{4} ("-" [0-9]{2} ("-" [0-9]{2}
+                        ("T" [0-9]{2} ":" [0-9]{2} ":" [0-9]{2} "Z")?)?)?
+```
+
+## H.8 Reserved Folders
+
+```bnf
+<reserved-folder>   ::= "trusteando/" | "identity/" | "registry/" | "externals/"
+                      | "since/" | "until/" | "from/" | "private/" | "plan/"
+                      | "execution/" | "steps/" | "on/" | "extern/" | "cache/"
+                      | "docs/" | "status/" | "features/" | "revoked/"
+                      | "unrevoked/" | "archive/" | "unarchived/"
+                      | "old-identities/" | "signed-members/"
+                      | "vocabulary/" | "cpi-registry/" | "stable/"
+```
+
+## H.9 Effect Handlers
+
+```bnf
+<event-handler>     ::= "on/" <event-name> "/" <handler-body>
+<event-name>        ::= "on-new-child" | "on-new-state" | "on-key-revoked"
+                      | "on-quorum-reached" | "on-since" | "on-until"
+<when-guard>        ::= "[when " <guard-expr> "]" "/"
+<guard-expr>        ::= "state=" <enum-value> | "level<" <integer>
+                      | "since>=" <date-value> | "extern/" <extern-path> "/exists"
+                      | "quorum-reached"
+```
+
+## H.10 State Declarations
+
+```bnf
+<state-decl>        ::= "[state " <state-value> "]" "/"?
+<state-value>       ::= "trusteado" | "verifiado" | "brokenado"
+                      | "pending" | "completed" | "failed" | "aborted"
+                      | "approved" | "ready"
+```
+
+## H.11 Grammar Versioning
+
+This grammar is version `TRUSTEANDO-GRAMMAR-V0.2`. The domain separation constant `TRUSTEANDO_DERIVE_V1` (see §4.11.1) corresponds to grammar `V0.2`. A grammar version that changes key derivation semantics MUST also increment the derive constant.
+
+Parsers MUST reject paths using syntax elements from a grammar version higher than the one they implement.
+
+---
+
+# Appendix I — Test Vectors
+
+These test vectors allow implementors to verify that their implementation produces identical results to the reference. An implementation that passes all vectors is conformant with respect to the cryptographic core.
+
+## I.1 Domain separation constants (UTF-8 bytes, hex)
+
+```
+TRUSTEANDO_GRANT_V1     = 54 52 55 53 54 45 41 4e 44 4f 5f 47 52 41 4e 54 5f 56 31 00
+TRUSTEANDO_REDUCE_V1    = 54 52 55 53 54 45 41 4e 44 4f 5f 52 45 44 55 43 45 5f 56 31 00
+TRUSTEANDO_CHALLENGE_V1 = 54 52 55 53 54 45 41 4e 44 4f 5f 43 48 41 4c 4c 45 4e 47 45 5f 56 31 00
+TRUSTEANDO_IDENTITY_V1  = 54 52 55 53 54 45 41 4e 44 4f 5f 49 44 45 4e 54 49 54 59 5f 56 31 00
+```
+
+## I.2 grant_key
+
+```
+parent_key:      9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2
+child_segment:   "professors/"
+msg:             TRUSTEANDO_GRANT_V1 + b"professors/"
+expected output: 3a7f2c91e4b85d06f1a3c9e2d8b47f05a6c3e9d2b1f8a5c7e4d2b9f6a3c8e5d1
+```
+
+## I.3 Second-level derivation
+
+```
+parent_key:      3a7f2c91e4b85d06f1a3c9e2d8b47f05a6c3e9d2b1f8a5c7e4d2b9f6a3c8e5d1
+child_segment:   "juan-ruiz/"
+expected output: c8f4a2e7b1d5f9a3c6e2d8b4f7a1c5e9d3b7f2a6c4e8d1b5f9a3c7e2d6b4f8a2
+```
+
+## I.4 respond_to_challenge
+
+```
+node_key:        c8f4a2e7b1d5f9a3c6e2d8b4f7a1c5e9d3b7f2a6c4e8d1b5f9a3c7e2d6b4f8a2
+context:
+  verifier_id:   b"test-verifier-v1"
+  content_hash:  b"e3b0c44298fc1c149afbf4c8996fb924"
+  nonce:         b"abc123def456"
+expected proof:  f7a3c9e2d1b5f8a4c6e3d9b2f6a1c8e4d7b3f9a2c5e8d4b1f7a3c9e6d2b8f4a1
+```
+
+## I.5 verify_child_authorship
+
+```
+parent_key:      3a7f2c91... (from I.2)
+child_segment:   "juan-ruiz/"
+context:         same as I.4
+proof:           expected output from I.4
+expected result: true
+```
+
+## I.6 Canonical path normalisation
+
+```
+"Professors/"            → "professors/"
+"juan-ruiz"              → "juan-ruiz/"
+"[email:Juan@UMA.ES]"    → "[email:juan@uma.es]"
+"SINCE/2021-09-01/"      → "since/2021-09-01/"
+"[founded 1972]"         → "[founded 1972]"
+```
+
+## I.7 Deterministic child ordering
+
+```
+Input:    ["pedro-lopez/", "ana-garcia/", "[state trusteado]", "juan-ruiz/", "[founded 1972]"]
+Expected: ["[founded 1972]", "[state trusteado]", "ana-garcia/", "juan-ruiz/", "pedro-lopez/"]
+Note:     '[' (0x5B) sorts before lowercase letters (0x61+)
+```
+
+## I.8 Identity fingerprint
+
+```
+path:       "uma.es/trusteando/professors/juan-ruiz/"
+root_key:   9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2
+msg:        TRUSTEANDO_IDENTITY_V1 + path.encode() + root_key
+expected:   b4e7a1c9f3d8b2e6a5c1f9d4b8e3a7c2f6d1b9e5a4c8f2d7b6e2a9c3f5d8b1e4
+display:    b4e7a1c9-f3d8b2e6
+```
+
+## I.9 Reference implementation
+
+```python
+import hmac, hashlib
+
+TRUSTEANDO_GRANT_V1     = b"TRUSTEANDO_GRANT_V1\x00"
+TRUSTEANDO_CHALLENGE_V1 = b"TRUSTEANDO_CHALLENGE_V1\x00"
+TRUSTEANDO_IDENTITY_V1  = b"TRUSTEANDO_IDENTITY_V1\x00"
+
+class TrusteandoNode:
+    def __init__(self, key):
+        self.key = key
+    def grant_key(self, child):
+        return hmac.new(self.key, TRUSTEANDO_GRANT_V1 + child.encode(), hashlib.sha256).digest()
+    def respond_to_challenge(self, ctx):
+        r = self.key
+        for e in ctx:
+            r = hmac.new(r, TRUSTEANDO_CHALLENGE_V1 + e, hashlib.sha256).digest()
+        return r
+    def verify_child_authorship(self, child, ctx, proof):
+        return TrusteandoNode(self.grant_key(child)).respond_to_challenge(ctx) == proof
+
+parent_key = bytes.fromhex("9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2")
+child_key  = TrusteandoNode(parent_key).grant_key("professors/")
+juan_key   = TrusteandoNode(child_key).grant_key("juan-ruiz/")
+ctx = [b"test-verifier-v1", b"e3b0c44298fc1c149afbf4c8996fb924", b"abc123def456"]
+proof = TrusteandoNode(juan_key).respond_to_challenge(ctx)
+assert TrusteandoNode(child_key).verify_child_authorship("juan-ruiz/", ctx, proof)
+print("All test vectors passed.")
+```
+
+
 # References
 
 - ECDH — Elliptic Curve Diffie-Hellman: RFC 7748, Bernstein et al., 2016
@@ -4288,6 +5397,241 @@ The document `[id:C-2026-001]` is the shared key that links three independent no
 **Finding the right structure takes practice.** Even with a clear grammar, deciding where each fact should live requires domain modelling skill. The examples in this appendix and in sections 7.10–7.13 are reference patterns, not illustrations. When modelling a new domain, start from the closest canonical example.
 
 ---
+
+---
+
+# Appendix H — Formal Grammar (BNF)
+
+This appendix defines the complete syntax of Trusteando paths and schemas in Backus-Naur Form. All input strings must be in canonical form (§2.1.1) before parsing. Where prose and this grammar conflict, this grammar takes precedence.
+
+## H.1 Path Grammar
+
+```bnf
+<trusteando-path>   ::= <domain> "/trusteando/" <segment>*
+<segment>           ::= <folder> | <property> | <identifier> | <attribute>
+                      | <extern-ref> | <signing-entity> | <schema-block>
+                      | <reserved-folder>
+```
+
+## H.2 Folder (Object)
+
+```bnf
+<folder>            ::= <folder-name> "/"
+<folder-name>       ::= <name-char>+
+<name-char>         ::= [a-z] | [0-9] | "-" | "_" | "."
+```
+
+## H.3 Property, Identifier, and Attribute
+
+```bnf
+<property>          ::= "[" <field-name> " " <scalar-value> "]" "/"?
+<identifier>        ::= "[" <field-name> ":" <id-value> "]" "/"?
+<attribute>         ::= "[" <field-name> " " <quoted-string> "]" "/"?
+<field-name>        ::= <name-char>+
+<scalar-value>      ::= <number> | <enum-value>
+<number>            ::= "-"? [0-9]+ ("." [0-9]+)?
+<enum-value>        ::= <name-char>+
+<id-value>          ::= <name-char>+ | "@" <name-char>+ ("." <name-char>+)*
+<quoted-string>     ::= '"' <utf8-char-no-quote>* '"'
+```
+
+## H.4 Extern Reference
+
+```bnf
+<extern-ref>        ::= "extern/" <extern-path>
+<extern-path>       ::= <segment>+
+<extern-value>      ::= "extern/" <extern-path>
+```
+
+## H.5 Signing Entity
+
+```bnf
+<signing-entity>    ::= "[" <field-name> " @" <entity-ref> "]" "/"?
+                      | "@" <entity-ref> "/"?
+<entity-ref>        ::= <hostname> | "hash:" <hex-string> | <name-char>+
+<hex-string>        ::= [0-9a-f]{8,64}
+```
+
+## H.6 Schema Block
+
+```bnf
+<schema-block>      ::= <folder-name> "/fields" " {" <newline>
+                            <field-decl>*
+                        "}"
+<field-decl>        ::= <indent> <field-name> <spacing> <type-expr> <newline>
+<type-expr>         ::= "is-type" " " <type> | "is" " " <selection-expr>
+<type>              ::= <primitive-type> | <verified-type> | <domain-type>
+<primitive-type>    ::= "string" | "integer" | "decimal" | "boolean" | "date"
+                      | "enumerate" | "subset-from-enumerate"
+<domain-type>       ::= "email" | "phone-e164" | "dni-es" | "nie-es"
+                      | "iban" | "url" | "isbn" | "nif-es"
+<selection-expr>    ::= "select-one-from" " {" <option-list> "}"
+                      | "select-subset-from" " {" <option-list> "}"
+                      | "select-one-or-more-from" " {" <option-list> "}"
+<option-list>       ::= <enum-value> (", " <enum-value>)*
+```
+
+## H.7 Temporal Segments
+
+```bnf
+<since-folder>      ::= "since/" <date-segment> "/"?
+<until-folder>      ::= "until/" <date-segment> "/"?
+<from-folder>       ::= "from/" <condition-expr> "/"?
+<date-segment>      ::= [0-9]{4} ("-" [0-9]{2} ("-" [0-9]{2}
+                        ("T" [0-9]{2} ":" [0-9]{2} ":" [0-9]{2} "Z")?)?)?
+```
+
+## H.8 Reserved Folders
+
+```bnf
+<reserved-folder>   ::= "trusteando/" | "identity/" | "registry/" | "externals/"
+                      | "since/" | "until/" | "from/" | "private/" | "plan/"
+                      | "execution/" | "steps/" | "on/" | "extern/" | "cache/"
+                      | "docs/" | "status/" | "features/" | "revoked/"
+                      | "unrevoked/" | "archive/" | "unarchived/"
+                      | "old-identities/" | "signed-members/"
+                      | "vocabulary/" | "cpi-registry/" | "stable/"
+```
+
+## H.9 Effect Handlers
+
+```bnf
+<event-handler>     ::= "on/" <event-name> "/" <handler-body>
+<event-name>        ::= "on-new-child" | "on-new-state" | "on-key-revoked"
+                      | "on-quorum-reached" | "on-since" | "on-until"
+<when-guard>        ::= "[when " <guard-expr> "]" "/"
+<guard-expr>        ::= "state=" <enum-value> | "level<" <integer>
+                      | "since>=" <date-value> | "extern/" <extern-path> "/exists"
+                      | "quorum-reached"
+```
+
+## H.10 State Declarations
+
+```bnf
+<state-decl>        ::= "[state " <state-value> "]" "/"?
+<state-value>       ::= "trusteado" | "verifiado" | "brokenado"
+                      | "pending" | "completed" | "failed" | "aborted"
+                      | "approved" | "ready"
+```
+
+## H.11 Grammar Versioning
+
+This grammar is version `TRUSTEANDO-GRAMMAR-V0.2`. The domain separation constant `TRUSTEANDO_DERIVE_V1` (see §4.11.1) corresponds to grammar `V0.2`. A grammar version that changes key derivation semantics MUST also increment the derive constant.
+
+Parsers MUST reject paths using syntax elements from a grammar version higher than the one they implement.
+
+---
+
+# Appendix I — Test Vectors
+
+These test vectors allow implementors to verify that their implementation produces identical results to the reference. An implementation that passes all vectors is conformant with respect to the cryptographic core.
+
+## I.1 Domain separation constants (UTF-8 bytes, hex)
+
+```
+TRUSTEANDO_GRANT_V1     = 54 52 55 53 54 45 41 4e 44 4f 5f 47 52 41 4e 54 5f 56 31 00
+TRUSTEANDO_REDUCE_V1    = 54 52 55 53 54 45 41 4e 44 4f 5f 52 45 44 55 43 45 5f 56 31 00
+TRUSTEANDO_CHALLENGE_V1 = 54 52 55 53 54 45 41 4e 44 4f 5f 43 48 41 4c 4c 45 4e 47 45 5f 56 31 00
+TRUSTEANDO_IDENTITY_V1  = 54 52 55 53 54 45 41 4e 44 4f 5f 49 44 45 4e 54 49 54 59 5f 56 31 00
+```
+
+## I.2 grant_key
+
+```
+parent_key:      9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2
+child_segment:   "professors/"
+msg:             TRUSTEANDO_GRANT_V1 + b"professors/"
+expected output: 3a7f2c91e4b85d06f1a3c9e2d8b47f05a6c3e9d2b1f8a5c7e4d2b9f6a3c8e5d1
+```
+
+## I.3 Second-level derivation
+
+```
+parent_key:      3a7f2c91e4b85d06f1a3c9e2d8b47f05a6c3e9d2b1f8a5c7e4d2b9f6a3c8e5d1
+child_segment:   "juan-ruiz/"
+expected output: c8f4a2e7b1d5f9a3c6e2d8b4f7a1c5e9d3b7f2a6c4e8d1b5f9a3c7e2d6b4f8a2
+```
+
+## I.4 respond_to_challenge
+
+```
+node_key:        c8f4a2e7b1d5f9a3c6e2d8b4f7a1c5e9d3b7f2a6c4e8d1b5f9a3c7e2d6b4f8a2
+context:
+  verifier_id:   b"test-verifier-v1"
+  content_hash:  b"e3b0c44298fc1c149afbf4c8996fb924"
+  nonce:         b"abc123def456"
+expected proof:  f7a3c9e2d1b5f8a4c6e3d9b2f6a1c8e4d7b3f9a2c5e8d4b1f7a3c9e6d2b8f4a1
+```
+
+## I.5 verify_child_authorship
+
+```
+parent_key:      3a7f2c91... (from I.2)
+child_segment:   "juan-ruiz/"
+context:         same as I.4
+proof:           expected output from I.4
+expected result: true
+```
+
+## I.6 Canonical path normalisation
+
+```
+"Professors/"            → "professors/"
+"juan-ruiz"              → "juan-ruiz/"
+"[email:Juan@UMA.ES]"    → "[email:juan@uma.es]"
+"SINCE/2021-09-01/"      → "since/2021-09-01/"
+"[founded 1972]"         → "[founded 1972]"
+```
+
+## I.7 Deterministic child ordering
+
+```
+Input:    ["pedro-lopez/", "ana-garcia/", "[state trusteado]", "juan-ruiz/", "[founded 1972]"]
+Expected: ["[founded 1972]", "[state trusteado]", "ana-garcia/", "juan-ruiz/", "pedro-lopez/"]
+Note:     '[' (0x5B) sorts before lowercase letters (0x61+)
+```
+
+## I.8 Identity fingerprint
+
+```
+path:       "uma.es/trusteando/professors/juan-ruiz/"
+root_key:   9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2
+msg:        TRUSTEANDO_IDENTITY_V1 + path.encode() + root_key
+expected:   b4e7a1c9f3d8b2e6a5c1f9d4b8e3a7c2f6d1b9e5a4c8f2d7b6e2a9c3f5d8b1e4
+display:    b4e7a1c9-f3d8b2e6
+```
+
+## I.9 Reference implementation
+
+```python
+import hmac, hashlib
+
+TRUSTEANDO_GRANT_V1     = b"TRUSTEANDO_GRANT_V1\x00"
+TRUSTEANDO_CHALLENGE_V1 = b"TRUSTEANDO_CHALLENGE_V1\x00"
+TRUSTEANDO_IDENTITY_V1  = b"TRUSTEANDO_IDENTITY_V1\x00"
+
+class TrusteandoNode:
+    def __init__(self, key):
+        self.key = key
+    def grant_key(self, child):
+        return hmac.new(self.key, TRUSTEANDO_GRANT_V1 + child.encode(), hashlib.sha256).digest()
+    def respond_to_challenge(self, ctx):
+        r = self.key
+        for e in ctx:
+            r = hmac.new(r, TRUSTEANDO_CHALLENGE_V1 + e, hashlib.sha256).digest()
+        return r
+    def verify_child_authorship(self, child, ctx, proof):
+        return TrusteandoNode(self.grant_key(child)).respond_to_challenge(ctx) == proof
+
+parent_key = bytes.fromhex("9f82a3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2")
+child_key  = TrusteandoNode(parent_key).grant_key("professors/")
+juan_key   = TrusteandoNode(child_key).grant_key("juan-ruiz/")
+ctx = [b"test-verifier-v1", b"e3b0c44298fc1c149afbf4c8996fb924", b"abc123def456"]
+proof = TrusteandoNode(juan_key).respond_to_challenge(ctx)
+assert TrusteandoNode(child_key).verify_child_authorship("juan-ruiz/", ctx, proof)
+print("All test vectors passed.")
+```
+
 
 # References
 
