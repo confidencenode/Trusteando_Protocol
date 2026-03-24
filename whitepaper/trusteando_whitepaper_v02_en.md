@@ -61,6 +61,8 @@ Trusteando is that protocol. The graph's nodes are entities identified by the ha
 
 What if trust worked like version control? What if every claim was a commit, every authority a repository, every verification a checkout? In Git, the history is immutable — each commit is a fact, the current state is the projection of that history. Trusteando applies this model to knowledge: every published folder is a commit, the state of an entity is the sum of the facts it has published, and verifying a credential is reconstructing the history of a branch of authority. There is no central database to query. There is a history to read.
 
+The concepts the protocol uses — hierarchy, dates, signatures, delegation — are concepts humans already understand and already use. Trusteando does not need to be learned. It needs to be recognised.
+
 
 ## 1.1 A Parallel Network on the Same Web
 
@@ -1295,7 +1297,11 @@ The protocol is agnostic to the content of credentials. The following use cases 
 
 ## 7.1 Academic and Professional Credentials
 
-A university registers its professors in its identity space. A medical college registers its members. A law firm registers its members. Any verifier can check the credential without calling a central server—by consulting the issuer's URL and verifying the signature.
+A university registers its professors in its identity space. A medical college registers its members. A law firm registers its members. Any verifier can check the credential without calling a central server — by consulting the issuer's URL and verifying the signature.
+
+The student does not receive a copy of the credential — they receive a key that grants access to it. The university publishes the credential under a `private/` folder. Only the student (who holds the key) can reveal it via `grantReveal()`. Different verifiers can be granted access to different subsets of the student's academic record — a prospective employer sees the degree, a library sees only enrolment status — and access can be revoked at any time. The student's control over their own data is not an add-on; it is built into the folder structure from the start.
+
+This also means interoperability requires no bilateral agreement. If a recruiter's platform implements a verifier that reads `uma.es/trusteando/degrees/[hash]/` and verifies the UMA's signature, it works with any university that publishes in the same schema. No contract, no API negotiation, no custom integration — only convergence on the same folder structure.
 
 
 ## 7.2 Presence-Verified Reviews
@@ -1723,6 +1729,52 @@ Each party publishes in their own space. The doctor publishes the prescription a
 | Unauthorised medication | Reference to `sanidad.es/medications/` — authority controls what is valid |
 | Unidentified patient | Reference to verified identity node |
 | Full traceability | Every action signed, timestamped, and permanent |
+
+---
+
+## 7.14 Administrative Acts and Chain of Mandate
+
+Public administration is a cascade of delegated authority. The challenge is not only proving who signed an act, but proving that the signer had unrevoked authority at the moment of signing — and that the authority chain from the trusted root to the agent was intact throughout.
+
+### The authority cascade
+
+```
+estado.gob/min-urbanismo/           ← root of trust
+└── ayuntamiento/malaga/            ← delegated node
+    └── employees/
+        └── tecnico-01/             ← agent node
+            └── acts/
+                └── license-99/     ← signed act
+                    └── since/2026-03-15/
+```
+
+Each level derives its key from its parent via `grant_key`. The agent's authority is not a stored permission — it is a cryptographic consequence of its position in the tree. Any verifier can trace the chain upward from the act to the trusted root without consulting any central registry.
+
+### Validity at the time of the act
+
+When an employee leaves, the organisation publishes `until/` in their employee entry:
+
+```
+ayuntamiento/malaga/employees/tecnico-01/
+├── since/2024-01-10/
+└── until/2026-04-01/      ← authority ends here
+```
+
+The validity rule for any act signed by that employee is:
+
+> **An act is valid if `date_of_act < date_in_until`.**
+
+A licence signed on 15 March remains valid after 1 April — the authority existed at the time of signing. A licence signed on 2 April is invalid — the authority had already been revoked. The protocol does not need to invalidate past acts retroactively; it only needs to record when the authority ended.
+
+### What the protocol guarantees — and what it does not
+
+The protocol proves two things: that the signature is cryptographically authentic (it came from the agent's key), and that the agent's authority chain was unrevoked at the date of the act. It does not prove that the content of the act is legally correct, or that the agent acted in good faith.
+
+This distinction matters for high-stakes administrative acts. A building permit signed by a corrupt official with valid authority is cryptographically valid in Trusteando — the protocol records that the official signed it, with full authority, at that moment. Whether the permit should have been issued is a legal question, not a cryptographic one. The protocol provides the evidence; the legal system provides the judgment.
+
+### The administration as its own official gazette
+
+The folder structure of a public administration is, in effect, a real-time official gazette. A citizen who receives a fine or a licence can trace the signature upward through the authority chain — from the signing agent to the municipal department to the ministry — and verify at each level that the authority was unrevoked at the time of the act. No separate lookup in an official bulletin is required. The graph is the bulletin.
 
 ---
 
@@ -2167,6 +2219,16 @@ The protocol core is four functions and twenty lines of code. The whitepaper is 
 The core cannot grow. Every primitive added to the core adds complexity that every implementor must handle. The ecosystem — conventions, schemas, patterns, sector vocabularies — can grow indefinitely without burdening the core. An implementor who only needs Level 1 or Level 2 (section 1.2) never needs to read past section 4.
 
 The risk is that ecosystem complexity obscures core simplicity. This section exists partly to name that risk explicitly: the protocol is simple. The world it models is not.
+
+## 13.6 Revocation vs Cached Verification
+
+The protocol supports signed caches to reduce verification latency (sections 4.3, A.11). An issuer publishes a signed list of valid credentials with a TTL. A verifier using that list can answer queries locally without contacting the issuer for each verification.
+
+This creates a trade-off. A revoked credential may appear valid to a verifier using a cached copy that predates the revocation, until the cache expires or is refreshed. The window is bounded by the TTL. For low-stakes verifications — a student discount, a library card — this is acceptable. For high-stakes verifications — employment, professional licensing, financial transactions — the verifier should perform a live check against the issuer's current state.
+
+The protocol does not mandate one mode. It provides both, and the context determines the correct choice. Implementors must choose TTLs appropriate to their domain. The security property is not that revocation is instantaneous — it is that revocation is eventually consistent and that the window is known and bounded.
+
+This trade-off is particularly visible in academic credentials. A university that revokes a degree for academic misconduct may have already issued signed caches that list the degree as valid. Those caches remain valid until their TTL expires. For employment verification, a live check is appropriate. For a library access card, a cached check is sufficient. The same credential, the same revocation — different verification modes for different contexts. See also section 12.13 (Latency in Critical Security Revocation).
 
 ---
 
