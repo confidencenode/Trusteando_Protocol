@@ -65,6 +65,8 @@ The concepts the protocol uses — hierarchy, dates, signatures, delegation — 
 
 This is an ideal, not a description of the current state. The grammar is simple; modelling a real domain correctly requires practice (section 1.2). The claim is not that there is no learning curve — there is. The claim is that the curve follows familiar concepts rather than introducing alien ones.
 
+The same principles apply to machines. Trusteando gives autonomous agents what it gives humans: a way to prove who they are, what they are authorised to do, and what they have done — in a world where no one trusts anyone by default. An agent with a key implements the same protocol as a person with a key. The audit trail is the graph. See section 7.15.
+
 
 ## 1.1 A Parallel Network on the Same Web
 
@@ -419,6 +421,7 @@ subfolder-name/              OBJECT     — has its own key, controls its subtre
 [field "value"]/             ATTRIBUTE  — descriptive string, not unique
 [field value]/               PROPERTY   — numeric or enumerated value
 extern/path/to/node/         REFERENCE  — link to data living elsewhere
+@entity/                     FIRMANTE   — reference to a signing entity (implements Firmante)
 fields { ... }               SCHEMA     — structured local data declaration
 ```
 
@@ -438,6 +441,80 @@ transfer/
 ```
 
 The same identifier can be an object in one context and a property in another. The container defines the semantics, not the identifier itself.
+
+### The object theory of Trusteando
+
+Every folder is an object in the OOP sense — it has data (properties) and implicit methods that emerge from its structure. A folder like `professors/` is not an inert container — it is an object with a well-defined interface:
+
+```python
+class Professors:
+    def member(id) -> Professor          # access a specific member
+    def members() -> List[Professor]     # all current members (no until/ in the past)
+    def members_since(date) -> List      # members from a date
+    def history() -> List                # complete history including departures
+```
+
+These methods are not declared — they are inferred by any parser that traverses the folder structure. `members()` is "all subfolders without an expired `until/`". `history()` is "all subfolders without filter". The folder structure is the implementation; the queries are the interface.
+
+This connects directly to the Datalog parallel (section 2.14.7): these implicit methods are exactly Datalog queries over the graph. `members()` is `?- professor(X), not revoked(X)`.
+
+### Three kinds of node
+
+This analysis reveals three distinct kinds of node in Trusteando:
+
+**1. Object** — a folder with data and structure. Its signature belongs to its parent. It has implicit methods (`member`, `members`, `history`) but cannot sign independently.
+
+```
+contratos.es/trusteando/contratos/C-001/
+├── [fecha 2026-03-24]/
+└── [contenido "servicios 2026"]/
+```
+
+**2. Property** — `[field value]`, `[field "value"]`, `[field:value]`. Pure data belonging to the parent. No methods, no control, no key.
+
+**3. Signing entity (`@`)** — a node that implements the `Firmante` protocol. It has its own key and can sign independently of any parent.
+
+### `@` as the `Firmante` protocol
+
+`@entity` marks a reference to a node that implements the `Firmante` protocol — exactly `TrusteandoNode`:
+
+```python
+protocol Firmante:
+    def grant_key(child) -> Key
+    def respond_to_challenge(ctx) -> Proof
+    def verify_child_authorship(child, ctx, proof) -> bool
+```
+
+A URL is the most common way to anchor a `Firmante` identity — but not the only one. A locally generated hash (autonomous mode, section 2.1), a state-issued certificate (DNIe, FNMT), or any other mechanism that produces a verifiable key qualifies. What defines a `@` node is not having a URL — it is having a key and implementing `Firmante`.
+
+`@` in a path means: "this reference points to an entity that can sign". It is the type annotation for `Firmante`:
+
+```
+[firmante @personaA.es]          ← personaA implements Firmante
+[emisor @notaria.es]             ← notaria implements Firmante
+[firmante @hash:a3f9e2b1...]     ← autonomous identity, no URL
+```
+
+This is the dual of `extern/`: `extern/` says "data lives elsewhere"; `@` says "a signing entity lives there". They can be combined — `[firmante extern/@personaA.es]` — but `@` alone is sufficient when the reference is to a signing entity.
+
+### Why this matters for modelling
+
+When designing a folder structure, the question is always: what kind of node is this?
+
+- If it organises other nodes → **object** (folder, implicit methods)
+- If it is a value describing its parent → **property** (`[field value]`)
+- If it needs to sign independently → **signing entity** (`@`)
+
+A contract between two parties illustrates all three:
+
+```
+contratos.es/trusteando/C-001/     ← object (the contract itself)
+├── [fecha 2026-03-24]/            ← property (data of the contract)
+├── [firmante @personaA.es]/       ← signing entity reference
+└── [firmante @personaB.es]/       ← signing entity reference
+```
+
+The contract is an object — it has structure and data. The date is a property — pure data. The signing parties are `@` references — they sign from their own spaces, with their own keys, under their own authority. No special syntax is needed beyond `@` to express this distinction.
 
 ## 2.14.3 The Type System
 
@@ -1782,6 +1859,85 @@ The folder structure of a public administration is, in effect, a real-time offic
 
 ---
 
+## 7.15 Autonomous Agents and Machine Identity
+
+The protocol does not assume that a `Firmante` is human. It assumes that a `Firmante` has a key. An autonomous agent — an LLM, a software robot, an automated system — that holds a key implements `TrusteandoNode` exactly as a human or organisation does. The verification mechanism is identical. The audit trail is identical. The revocation mechanism is identical.
+
+This is not a special case. It is a direct consequence of the design.
+
+### Agent identity without a domain
+
+An agent does not need a domain to participate in the graph. Using the autonomous identity mode (section 2.1), an agent can generate a key locally and publish its facts under its owner's node:
+
+```
+empresa.es/trusteando/agents/
+└── @agente-01/                       ← autonomous key, no domain required
+    ├── since/2026-03-24/
+    ├── [type llm-agent]/
+    └── [model "gpt-4o"]/
+```
+
+The company grants the agent a key via `grant_key("agente-01")`. The agent signs its actions with that key. The company retains full control — it can revoke the agent at any moment by publishing `until/`.
+
+### Instructions and execution as immutable facts
+
+The agent's instructions are published as facts under `plan/`. Its actions are published under `execution/`. Neither can be modified retroactively:
+
+```
+empresa.es/trusteando/agents/@agente-01/
+├── plan/
+│   ├── [task "analizar-contratos"]/
+│   ├── [scope extern/empresa.es/trusteando/contratos/]/
+│   └── since/2026-03-24T09:00:00Z/
+└── execution/
+    ├── [action:001]/
+    │   ├── [type "read"]/
+    │   ├── [target extern/empresa.es/trusteando/contratos/C-001]/
+    │   └── since/2026-03-24T09:05:00Z/
+    └── [action:002]/
+        ├── [type "flag"]/
+        ├── [reason "missing-signature"]/
+        └── since/2026-03-24T09:07:00Z/
+```
+
+Any auditor can reconstruct exactly what instructions the agent received, from whom, and what actions it took — without asking anyone. The graph is the audit log.
+
+### Delegation between agents
+
+An agent can delegate sub-tasks to other agents using the same `grant_key` mechanism:
+
+```
+empresa.es/trusteando/agents/@agente-01/sub-agents/
+└── @agente-02/                       ← agente-01 grants key to agente-02
+    ├── since/2026-03-24T09:10:00Z/
+    └── [scope "contratos/C-001"]/    ← limited scope
+```
+
+The delegation chain is fully verifiable: agente-02 has authority because agente-01 granted it, and agente-01 has authority because empresa granted it. The chain traces back to the human organisation that initiated it.
+
+### Human control is structural
+
+A human revokes an agent by publishing `until/` in the agent's node:
+
+```
+empresa.es/trusteando/agents/@agente-01/
+└── until/2026-03-24T18:00:00Z/       ← agent's authority ends here
+```
+
+The agent cannot override this. Any action signed after the `until/` date is invalid — `verify_child_authorship` will fail. The control is not a policy that can be bypassed — it is a cryptographic consequence of the key hierarchy.
+
+### Coordination between agents of different organisations
+
+Two agents from different organisations can exchange signed facts without prior trust — they trust the graph. Agent-A from empresa-A publishes a fact referencing agent-B from empresa-B. Agent-B can verify that empresa-A authorised agent-A, and vice versa, by tracing the authority chain upward from each agent to its respective root.
+
+This is the same mechanism used for human coordination — the graph makes machine-to-machine trust as verifiable as human-to-human trust.
+
+### What this means
+
+Trusteando gives machines what it gives humans: a way to prove who they are, what they are authorised to do, and what they have done — in a world where no one trusts anyone by default. The protocol does not distinguish between human agents and machine agents. It distinguishes between entities with keys and entities without them.
+
+---
+
 # 8. Sustainability Model
 
 The protocol is open. The reference implementation is free software. What can be monetized is the service layer over the protocol—not the protocol itself.
@@ -2419,6 +2575,7 @@ The following folders have specific semantics in the protocol. Any implementatio
 | `steps/` | Core | 7.12 | Sequential workflow steps |
 | `on/` | Core | A.26 | Effects namespace — event handlers |
 | `extern/` | Core | A.25 | Reference to canonical data in another node |
+| `@entity` | Core | 2.14.2 | Reference to a signing entity (implements Firmante / TrusteandoNode) |
 | `cache/` | Optional | A.11 | Cached signed results with TTL |
 | `docs/` | Optional | Style Guide §8 | Human-readable documentation |
 | `status/` | Optional | A.9 | Current operational status |
@@ -3246,6 +3403,28 @@ Implementations should distinguish three states when resolving an `extern/` refe
 | Does not resolve | Destination unreachable | Treat as unverifiable — do not reject, flag for review |
 
 The third case is not an error in the referencing node — it is a state of the network. A node that published a valid `extern/` reference at signing time is not responsible for the destination disappearing later.
+
+### `extern/` vs `@` — data vs signing entity
+
+`extern/` and `@` are both references to external nodes, but with different semantics:
+
+| | `extern/` | `@` |
+|---|---|---|
+| **References** | Data that lives in another node | An entity that implements `Firmante` |
+| **The destination** | A fact, a value, a document | A signing agent with its own key |
+| **Analogy** | `<a href>` in HTML | A typed object reference in OOP |
+| **Use when** | The referenced node is a data source | The referenced node can sign independently |
+
+```
+# extern/ — reference to data
+[from extern/bank/santander/accounts/[client-id:C-123456]]/  ← account data
+
+# @ — reference to signing entity
+[firmante @personaA.es]/    ← personaA implements Firmante, can sign
+[emisor @notaria.es]/       ← notaria implements Firmante, has authority
+```
+
+The distinction matters for verification: an `extern/` reference is verified by checking that the data exists at the destination. An `@` reference is verified by checking that the entity can produce a valid `respond_to_challenge` proof. See section 2.14.2 for the full object theory.
 
 ## A.26 on/ — effects namespace
 
