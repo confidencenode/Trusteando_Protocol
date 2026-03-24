@@ -1097,5 +1097,113 @@ These UML concepts merit further study for a future version of this guide:
 
 ---
 
+## 24. Static Verification — Where Verifiers Find Proof
+
+A common question for implementors: where does a verifier look for cryptographic proof when the server is static (Level 1) and cannot respond to real-time challenges?
+
+### The two verification modes
+
+**Dynamic verification (Level 2+):** The verifier sends a challenge to the child node, which responds with `respond_to_challenge`. The parent verifies with `verify_child_authorship`. This requires a live server.
+
+**Static verification (Level 1):** The parent periodically publishes a signed list of its valid children with a TTL. The verifier downloads this list once and verifies locally during the TTL period. No live challenge required.
+
+### The `signed-members/` convention
+
+A parent node that wants to support static verification publishes a signed membership list:
+
+```
+professors/
+├── juan-ruiz/since/2021/
+├── ana-garcia/since/2023/
+└── signed-members/
+    ├── [valid-until 2026-03-25T00:00:00Z]/
+    ├── [signed-by @uma.es]/
+    └── members.json          ← signed list of valid child HMACs
+```
+
+The `members.json` file contains:
+
+```json
+{
+  "parent": "uma.es/trusteando/professors/",
+  "valid-until": "2026-03-25T00:00:00Z",
+  "members": [
+    { "path": "juan-ruiz", "hmac": "a3f9e2b1..." },
+    { "path": "ana-garcia", "hmac": "c7d4f891..." }
+  ],
+  "signature": "3045022100..."
+}
+```
+
+A verifier that finds `signed-members/` can verify any child's membership locally without a live challenge. The TTL in `[valid-until]` bounds the window of potential inconsistency — see section 13.6 of the whitepaper for the revocation latency trade-off.
+
+### What a verifier should look for
+
+When a verifier encounters a node and wants to verify its membership:
+
+1. **Check for `signed-members/`** in the parent — if present, verify against the signed list (static mode)
+2. **If absent**, send a live challenge to the parent's server (dynamic mode)
+3. **If the parent is unreachable**, treat the node as unverifiable — not invalid, but unverifiable
+
+The absence of `signed-members/` is not an error — it means the parent only supports dynamic verification.
+
+### For binary files and documents
+
+When a node contains a binary file (PDF, image, executable), publish its hash as a property to maintain graph integrity:
+
+```
+degrees/juan-ruiz/
+├── since/2021-06-15/
+├── diploma.pdf
+└── [file:diploma.pdf]/
+    ├── [sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"]/
+    ├── [mime "application/pdf"]/
+    └── [size-bytes 1048576]/
+```
+
+The `[file:filename]` property anchors the binary to the graph. Any verifier can check the file's integrity by computing its SHA-256 and comparing it to the published hash. The file itself is not part of the Trusteando graph — the hash is.
+
+---
+
+## 25. Large Collections — Semantic Pagination
+
+When a node has thousands of children (a university with 50,000 students, a bank with millions of accounts), flat structure becomes impractical for parsers and verifiers.
+
+### Partition by time
+
+```
+students/
+├── by-year/
+│   ├── 2024/
+│   │   ├── juan-ruiz/
+│   │   └── ana-garcia/
+│   └── 2025/
+│       └── pedro-lopez/
+└── signed-members/       ← covers all partitions
+```
+
+### Partition by identifier prefix
+
+```
+students/
+├── by-surname/
+│   ├── a-f/
+│   │   └── ana-garcia/
+│   ├── g-m/
+│   │   └── juan-ruiz/
+│   └── n-z/
+│       └── pedro-lopez/
+└── signed-members/
+```
+
+### Rules for partitioned collections
+
+- The `signed-members/` list covers the **entire collection** across all partitions — not per partition
+- Partition folders (`by-year/`, `by-surname/`) are **containers**, not objects — they have no keys of their own
+- Partition names are **structural** — they do not appear in the child's identity path. `juan-ruiz`'s canonical path is `students/juan-ruiz/`, not `students/by-surname/g-m/juan-ruiz/`
+- Use partitions when a collection exceeds ~1000 members
+
+---
+
 *This is a living document. Conventions evolve with practice.*
 *confidencenode.org/protocolos/trusteando — Style Guide v0.3*
