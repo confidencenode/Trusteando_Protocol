@@ -2,7 +2,7 @@
 
 **Conventions and best practices for publishing verifiable knowledge graphs**
 
-*v0.1 — companion to the Trusteando Protocol Whitepaper v0.2*
+*v0.3 — companion to the Trusteando Protocol Whitepaper v0.2*
 *confidencenode.org/protocolos/trusteando*
 
 ---
@@ -548,28 +548,103 @@ Use `extern/` when the referenced data has its own identity in the graph and cou
 
 ---
 
-## 13. Objects vs Properties — Control vs Data
+## 13. Objects vs Properties vs Signing Entities — The Decision Guide
 
-The most important distinction in path design: an **object** placed in a folder controls its subtree; a **property** is just data belonging to the parent.
+The three kinds of node in Trusteando require different modelling choices. Picking the wrong one is the most common source of structural errors.
+
+### The three kinds
+
+| Kind | Syntax | Has key? | Can sign? | Use when |
+|---|---|---|---|---|
+| **Object** | `folder-name/` | Derived from parent | Via parent | The entity lives inside this hierarchy |
+| **Property** | `[field value]` | No | No | It is a data value describing the parent |
+| **Signing entity** | `@entity` | Own key | Yes, independently | The entity exists outside this hierarchy and can sign |
+
+### The decision flowchart
 
 ```
-# Object — has its own key, controls its content
-professors/juan-ruiz/
-└── since/2021/        ← juan-ruiz controls this
+Does this entity need to sign independently?
+├── Yes → use @ (signing entity)
+│         [firmante @personaA.es]
+│         [emisor @notaria.es]
+└── No → Is it a value describing the parent?
+         ├── Yes → use [field value] (property)
+         │         [fecha 2026-03-24]
+         │         [amount 100]
+         └── No → use folder/ (object)
+                   professors/juan-ruiz/
+                   contracts/C-001/
+```
 
-# Property — data of the parent, no control
+### The three kinds in one example
+
+```
+contracts/C-001/                       ← OBJECT: lives in this hierarchy
+├── [fecha 2026-03-24]/                ← PROPERTY: data of the contract
+├── [contenido "servicios 2026"]/      ← PROPERTY: data of the contract
+├── [firmante @personaA.es]/           ← SIGNING ENTITY: external, can sign
+└── [firmante @notaria.es]/            ← SIGNING ENTITY: external, can sign
+```
+
+### Common mistakes
+
+```
+# ❌ Wrong — making a signing entity a subfolder
+contracts/C-001/
+└── firmantes/
+    └── personaA/     ← personaA does not live inside this contract
+
+# ✅ Correct — signing entity as @ reference
+contracts/C-001/
+└── [firmante @personaA.es]/
+
+# ❌ Wrong — making a property a subfolder
+contracts/C-001/
+└── fecha/
+    └── 2026-03-24/   ← a date is a value, not an object
+
+# ✅ Correct — date as property
+contracts/C-001/
+└── [fecha 2026-03-24]/
+
+# ❌ Wrong — making an object a property
 transfer/
-└── [from:C-123456]/   ← data of the transfer, not a node
+└── [destination:banco-bbva]/   ← banco-bbva has its own hierarchy, not a value
+
+# ✅ Correct — banco-bbva as signing entity or object
+transfer/
+└── [destination @banco-bbva.es]/
 ```
 
-**Rule:** If an entity needs to respond to challenges, create child nodes, or be independently verifiable — make it an object (subfolder). If it is just a value describing the parent — make it a property (`[field:value]` or `[field "value"]`).
+### The implicit methods of a folder
 
-The same identifier can be an object in one context and a property in another:
+Every folder object has implicit methods that any parser can compute:
+
+```python
+folder.member(id)          # access a specific child
+folder.members()           # all current children (no expired until/)
+folder.members_since(date) # children valid from a date
+folder.history()           # all children including expired ones
+```
+
+These methods do not need to be declared. They emerge from the structure.
+
+### `extern/` vs `@`
+
+Both reference external nodes, but with different semantics:
+
+- `extern/path/` — references **data** that lives elsewhere. The destination is a fact or value.
+- `@entity` — references a **signing entity**. The destination implements `TrusteandoNode`.
 
 ```
-professors/juan-ruiz/              ← juan-ruiz IS an object (has identity)
-transfer/[from:juan-ruiz]/         ← juan-ruiz IS a property (participant role)
+# extern/ — data reference
+[from extern/bank/santander/accounts/[client-id:C-123456]]/
+
+# @ — signing entity reference
+[firmante @personaA.es]/
 ```
+
+If you are unsure which to use: ask whether the destination can sign something. If yes, use `@`. If it is just data, use `extern/`.
 
 ---
 
@@ -647,7 +722,371 @@ on-new-state/
 ---
 
 
-## 16. Considerations for Style Guide v0.2
+## 17. Selection Grammar — `select-one-from`, `select-subset-from`
+
+When a field can take one of a closed set of values, declare it explicitly using the selection grammar. This makes schemas machine-readable and self-documenting.
+
+### 17.1 `select-one-from` — exactly one value from a closed set
+
+```
+registration/
+└── [type select-one-from { brokenado, verifiado, trusteado }]/
+```
+
+Use when the field must have exactly one value and the set of valid values is known at schema definition time.
+
+### 17.2 `select-one-or-more-from` — at least one value from a closed set
+
+```
+languages/
+└── [spoken select-one-or-more-from { es, en, fr, de }]/
+```
+
+Use when the field requires at least one selection but allows multiple.
+
+### 17.3 `select-subset-from` — zero or more values from a closed set
+
+```
+registration/
+└── [data select-subset-from { email, phone, dni }]/
+```
+
+Use when the field may have any combination of values, including none. This is appropriate for optional or partial data declarations.
+
+### 17.4 Notation rules
+
+- Values inside `{}` are separated by commas and a single space
+- Values use kebab-case, consistent with folder naming conventions (section 1.2)
+- The full expression is the value of the property — it is not a shorthand for multiple properties
+
+```
+# Correct
+[type select-one-from { brokenado, verifiado, trusteado }]/
+
+# Avoid — splits what is a single typed declaration into multiple properties
+[type brokenado]/
+[type verifiado]/
+[type trusteado]/
+```
+
+### 17.5 Use `fields {}` to declare schemas with selection types
+
+Selection grammar is most useful inside a `fields {}` block, where it serves as the type annotation for a field:
+
+```
+registration/fields {
+    date     is-type date
+    data     is select-subset-from { email, phone, dni }
+    type     is select-one-from { brokenado, verifiado, trusteado }
+}
+```
+
+Fields inside `fields {}` follow alphabetical order by convention (see section 18.3).
+
+---
+
+## 18. Field Schemas — `fields {}`
+
+The `fields {}` block declares the structure of a node's data. It is the Trusteando equivalent of a type definition or a database schema — it tells a wallet, a verifier, or an implementer what fields a node accepts, their types, and their constraints.
+
+### 18.1 Basic syntax
+
+```
+node-name/fields {
+    field-name    is-type <type>
+    field-name    is <selection-expression>
+}
+```
+
+### 18.2 Primitive types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | Free text | `name is-type string` |
+| `date` | ISO 8601 date | `date is-type date` |
+| `boolean` | True or false | `active is-type boolean` |
+| `integer` | Whole number | `capacity is-type integer` |
+| `decimal` | Decimal number | `amount is-type decimal` |
+| `enumerate` | One value from an open set | `status is-type enumerate` |
+| `subset-from-enumerate` | Multiple values from an open set | `tags is-type subset-from-enumerate` |
+
+For closed sets, prefer `select-one-from {}` or `select-subset-from {}` (section 17) over `enumerate`.
+
+### 18.3 Field ordering — alphabetical by convention
+
+Fields inside `fields {}` are ordered alphabetically. This is a recommended convention, not a protocol requirement — consistent ordering makes schemas easier to read and diff.
+
+```
+# Preferred — alphabetical
+registration/fields {
+    data     is select-subset-from { email, phone, dni }
+    date     is-type date
+    name     is-type string
+    type     is select-one-from { brokenado, verifiado, trusteado }
+}
+
+# Acceptable but harder to scan
+registration/fields {
+    type     is select-one-from { brokenado, verifiado, trusteado }
+    name     is-type string
+    date     is-type date
+    data     is select-subset-from { email, phone, dni }
+}
+```
+
+### 18.4 Domain types with built-in validation
+
+Domain types carry implicit validation rules. A wallet reading a `fields {}` declaration knows how to validate inputs before signing:
+
+| Type | Validation |
+|------|-----------|
+| `email` | RFC 5322 format |
+| `phone-e164` | E.164 international format |
+| `dni-es` | Spanish modulo-23 check digit |
+| `nie-es` | Spanish NIE format |
+| `iban` | ISO 13616 checksum |
+| `url` | RFC 3986 format |
+
+```
+registration/fields {
+    dni      is-type dni-es
+    email    is-type email
+    name     is-type string
+    phone    is-type phone-e164
+}
+```
+
+### 18.5 Canonical example — user registration
+
+```
+T10/spain/register/fields {
+    data     is select-subset-from { email, phone, dni, signature }
+    date     is-type date
+    name     is-type string
+    type     is select-one-from { brokenado, verifiado, trusteado }
+}
+```
+
+This schema describes the three registration levels. A wallet reading it knows exactly which fields to present, which are required for each level, and how to validate them before signing.
+
+---
+
+## 19. The `[instance:N]` Convention
+
+When two nodes would occupy the same path — same parent, same identifier — the node assigns an `[instance:N]` suffix to disambiguate. This is the only mechanism for handling duplicates in the graph.
+
+### 19.1 The common case carries no instance suffix
+
+The majority of registrations have no duplicate. Do not add `[instance:1]` to the first occurrence — it is unnecessary and misleading.
+
+```
+# Correct — no suffix for the first and only occurrence
+T10/spain/register/brokenado/[email:juan@example.com]/
+
+# Avoid — implies duplicates exist when there are none
+T10/spain/register/brokenado/[email:juan@example.com]/[instance:1]/
+```
+
+### 19.2 `[instance:N]` only appears when a duplicate exists
+
+When a second registration arrives with the same identifier, the node assigns `[instance:2]` to the new entry. The original remains without suffix.
+
+```
+T10/spain/register/brokenado/[email:juan@example.com]/              ← first (no suffix)
+T10/spain/register/brokenado/[email:juan@example.com]/[instance:2]/ ← second
+```
+
+### 19.3 The instance suffix is part of the key derivation path
+
+`[instance:N]` is part of the path segment used to derive the child key via `grant_key`. Two registrations with the same email therefore have cryptographically distinct keys:
+
+```python
+key_first  = node.grant_key("email:juan@example.com")
+key_second = node.grant_key("email:juan@example.com/instance:2")
+```
+
+This ensures that holding the key for one registration grants no authority over the other.
+
+### 19.4 The node assigns the instance number — it cannot be chosen by the user
+
+`[instance:N]` is assigned by the node managing that path, not declared by the registering user. A user cannot request `[instance:2]` directly — the number is the result of the node's internal counter for that path (stored, for example, in Cloudflare KV).
+
+### 19.5 Warn the user when an instance suffix is assigned
+
+Receiving `[instance:2]` or higher means another registration already exists with the same identifier. Implementations should surface this to the user:
+
+```
+⚠ Another registration exists with this email address.
+  Your registration is valid, but you are not the only one using this identifier.
+  If this is unexpected, verify that your email has not been used without your knowledge.
+```
+
+---
+
+## 20. Property Syntax — Three Distinct Forms
+
+The three bracket syntaxes have distinct semantics. Choosing the right form makes paths unambiguous for both humans and parsers.
+
+| Syntax | Name | Semantics | Example |
+|---|---|---|---|
+| `[field:value]` | Identifier | Unique, indexable, primary key | `[client-id:C-123456]` |
+| `[field "value"]` | Attribute | Descriptive string, not unique | `[name "Juan Ruiz"]` |
+| `[field value]` | Property | Numeric or enumerated value | `[amount 100]`, `[currency EUR]` |
+
+The colon carries the uniqueness semantics implicitly — no `is-unique` declaration is needed in `fields {}`. The parser knows by syntax what is an identifier and what is a descriptor.
+
+```
+# Identifier — unique, indexable
+[client-id:C-123456]/
+[dni:12312312A]/
+[instance:2]/
+
+# Attribute — descriptive string
+[name "Juan Ruiz"]/
+[reason "Expired document"]/
+[objective "Launch v1.0"]/
+
+# Property — numeric or enumerated
+[amount 100]/
+[currency EUR]/
+[capacity 80]/
+[rating 4.2]/
+```
+
+The same entity can appear as an identifier in one context and as a property in another. The container defines the semantics, not the value itself:
+
+```
+professors/juan-ruiz/          ← object — juan-ruiz has identity and controls subtree
+transfer/[from:juan-ruiz]/     ← identifier — juan-ruiz is a participant role in the transfer
+transfer/[name "Juan Ruiz"]/   ← attribute — descriptive, not unique
+```
+
+---
+
+## 21. Verifiable Action Pattern — `fields {}` with Signature
+
+Any operation that requires cryptographic authorisation follows the same pattern: the node publishes a `fields {}` schema, the wallet reads it, validates inputs, and signs with `respond_to_challenge`. The receiving node verifies with `verify_child_authorship`.
+
+```
+# Schema declaration — published by the institution
+bank/santander/transfer/fields {
+    amount       is-type decimal-positive
+    concept      is-type string
+    currency     is select-one-from { EUR, USD, GBP }
+    date         is-type date
+    from-account is-type iban
+    to-account   is-type iban
+}
+```
+
+**Rule:** any `fields {}` schema that declares a verifiable action should include the fields needed to make the action non-repudiable — at minimum a `date` and enough context to identify the action uniquely.
+
+Two institutions that publish identical `fields {}` schemas for the same action are interoperable by construction. A wallet that works with one works with the other without any integration work. This is the practical expression of interoperability by design (whitepaper section 2.9).
+
+### The `procedures/` convention for multi-operation domains
+
+When an institution publishes several related operations, group them under a `procedures/` folder. This is a recommended convention, not a reserved name:
+
+```
+banco-santander.es/trusteando/procedures/
+├── transfer/fields { ... }
+├── account-opening/fields { ... }
+├── loan-application/fields { ... }
+└── kyc/fields { ... }
+```
+
+Any institution in the same sector that adopts the same `procedures/` structure becomes interoperable with any wallet or client that knows the standard path. This is particularly valuable in regulated sectors where a common schema acts as a machine-readable regulatory standard:
+
+| Sector | Standard procedures path |
+|---|---|
+| Banking | `trusteando/procedures/transfer/`, `kyc/`, `account/` |
+| Healthcare | `trusteando/procedures/prescription/`, `appointment/`, `referral/` |
+| Public administration | `trusteando/procedures/registration/`, `permit/`, `certificate/` |
+| Education | `trusteando/procedures/enrolment/`, `degree/`, `transcript/` |
+
+The `procedures/` folder does not need to be declared as reserved — its value comes from convergence across implementations in the same sector, not from protocol enforcement.
+
+---
+
+## 22. Workflow Error Handling — `steps/` with `failed` and `aborted`
+
+When a workflow step fails, append the failure as a new state — never modify or delete the existing record.
+
+```
+execution/steps/
+├── 01-contract/[state completed]/since/2026-03-22/
+├── 02-social-security/
+│   ├── [state failed]/since/2026-03-23/         ← preserved permanently
+│   │   └── [reason "Expired ID document"]/
+│   └── [state completed]/since/2026-03-24/      ← successful retry
+└── 03-system-access/[state pending]/
+```
+
+### Rules
+
+- `[state failed]` — the step did not complete. It can be retried by appending a new `[state completed]` or `[state aborted]`.
+- `[state aborted]` — definitive cancellation. No retry. Subsequent steps do not start.
+- `[reason "text"]` — optional child of a failed or aborted state. Human-readable, not machine-parsed.
+- If any step has `[state failed]` or `[state aborted]`, subsequent steps remain `[state pending]`.
+- The complete failure history is append-only — it can never be removed.
+
+### Avoid modifying published states
+
+```
+# Wrong — modifies existing state, breaks the signature
+execution/steps/02-social-security/[state failed]/ → DELETE
+
+# Correct — appends new state, history preserved
+execution/steps/02-social-security/[state completed]/since/2026-03-24/
+```
+
+---
+
+## 23. Sector Schemas and Interoperability Patterns
+
+The protocol's power as an interoperability standard emerges when independent organisations adopt the same `fields {}` schemas for the same operations. This section documents recommended patterns for common sectors.
+
+### 23.1 When to define a sector schema
+
+Define a sector schema when two or more independent organisations need to perform the same operation and a third party (wallet, verifier, regulator) needs to interact with both without custom integration.
+
+The schema should be the minimum necessary — only the fields that are universal across all implementations in the sector. Organisation-specific fields go under `private/` or as optional extensions.
+
+### 23.2 Schema stability
+
+A published `fields {}` schema is a public contract. Changing it breaks existing wallets. Follow these rules:
+
+- **Add fields** by publishing a new schema version under a versioned path: `procedures/transfer/v2/fields {}`
+- **Never remove or rename** fields from a published schema version
+- **Deprecate** old versions with `until/` rather than deleting them
+
+```
+bank/santander/trusteando/procedures/
+├── transfer/
+│   ├── v1/fields { ... }     ← deprecated, still valid
+│   │   └── until/2027-01-01/
+│   └── v2/fields { ... }     ← current
+```
+
+### 23.3 Cross-sector example — medical prescription
+
+```
+hospital-la-paz.es/trusteando/procedures/prescription/fields {
+    diagnosis-code   is-type string          ← ICD-10 code
+    drug-name        is-type string
+    dosage           is-type string
+    duration-days    is-type integer
+    patient-id       is-type dni-es
+    prescriber-id    is-type string
+    date             is-type date
+}
+```
+
+Any pharmacy that reads this schema can verify a prescription issued by any hospital that publishes the same structure — without a bilateral agreement between the hospital and the pharmacy.
+
+---
+
+## 16. Considerations for Style Guide v0.3
 
 These UML concepts merit further study for a future version of this guide:
 
@@ -659,4 +1098,4 @@ These UML concepts merit further study for a future version of this guide:
 ---
 
 *This is a living document. Conventions evolve with practice.*
-*confidencenode.org/protocolos/trusteando — Style Guide v0.1*
+*confidencenode.org/protocolos/trusteando — Style Guide v0.3*

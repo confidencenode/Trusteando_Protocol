@@ -2313,6 +2313,8 @@ Verifying a fact at the end of a long chain—root, university, faculty, departm
 
 Trusteando makes choices. Every architectural decision that gives the protocol one property takes away another. This section names those choices explicitly — not as apologies, but as principles. A protocol that does not acknowledge its trade-offs has not thought them through.
 
+A careful reader will notice that many of the limitations named here are the same ones a rigorous external reviewer would identify: DNS dependency, revocation latency, modelling complexity, initial centralisation, semantic fragmentation. These are not omissions discovered by critics — they are constraints the protocol recognises and documents. The presence of this section is itself a design decision: a protocol about truth should be honest about itself.
+
 ## 13.1 Facts vs Transactions — the "move semantics" argument
 
 Trusteando is an event store at the scale of a knowledge graph, not a general-purpose state machine. It models facts — immutable, signed statements about what exists or has existed — not transactions that transfer ownership or mutate state.
