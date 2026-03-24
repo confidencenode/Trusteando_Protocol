@@ -63,6 +63,8 @@ What if trust worked like version control? What if every claim was a commit, eve
 
 The concepts the protocol uses — hierarchy, dates, signatures, delegation — are concepts humans already understand and already use. Trusteando does not need to be learned. It needs to be recognised.
 
+This is an ideal, not a description of the current state. The grammar is simple; modelling a real domain correctly requires practice (section 1.2). The claim is not that there is no learning curve — there is. The claim is that the curve follows familiar concepts rather than introducing alien ones.
+
 
 ## 1.1 A Parallel Network on the Same Web
 
@@ -250,6 +252,8 @@ This openness is not a concession—it is what gives the system value. A protoco
 ## 2.9 Interoperability by Design
 
 A structural consequence of anchoring identity in public URLs and expressing relationships as a folder schema is that any system—database, REST API, microservice—that exposes its data while respecting that schema becomes interoperable by default with any other doing the same. There is no need to negotiate bilateral agreements or develop specific connectors: the folder structure is the interoperability contract. This has especially relevant implications for public administrations and agencies, where current interoperability demands complex intermediary platforms and point-to-point agreements. The use case is developed in section 7.8.
+
+One distinction is worth making explicit here. The protocol records declarations — signed statements about what an entity intends, certifies, or acknowledges. It does not execute actions. When two banks publish compatible `transfer/fields {}` schemas, a wallet can present a unified form to both and both can verify the signed intent. That is interoperability at the declaration layer. The movement of funds, the compliance checks, the settlement — those remain the responsibility of the banks' internal systems. The protocol is a notary, not an executor. See section 13.8.
 
 
 ## 2.10 The Graph as Immutable Historical Record
@@ -2229,6 +2233,44 @@ This creates a trade-off. A revoked credential may appear valid to a verifier us
 The protocol does not mandate one mode. It provides both, and the context determines the correct choice. Implementors must choose TTLs appropriate to their domain. The security property is not that revocation is instantaneous — it is that revocation is eventually consistent and that the window is known and bounded.
 
 This trade-off is particularly visible in academic credentials. A university that revokes a degree for academic misconduct may have already issued signed caches that list the degree as valid. Those caches remain valid until their TTL expires. For employment verification, a live check is appropriate. For a library access card, a cached check is sufficient. The same credential, the same revocation — different verification modes for different contexts. See also section 12.13 (Latency in Critical Security Revocation).
+
+To be explicit: signed caches are a performance optimisation, not a security mechanism. For security-critical applications, real-time revocation requires a live check against the issuer’s current state. The protocol does not solve the revocation latency problem — it makes the trade-off visible and the window measurable.
+
+## 13.7 DNS Dependency and Authority Capture
+
+Trusteando anchors identity in URLs. This is its greatest strength — it requires no new infrastructure and integrates with the existing web. It is also an inherited weakness.
+
+Controlling a URL is not the same as being the institution it represents. A server administrator with FTP access can publish fraudulent credentials. A domain can expire and be acquired by another party. A government can seize a domain or redirect its DNS. In all three cases, the URL changes hands without the institution’s consent, and any credentials published after that point carry a false authority.
+
+The emergency key mechanism (section 4.7) and autonomous identity mode (section 2.1) mitigate domain loss for voluntary migrations — an entity that moves domains can prove continuity. They do not protect against hostile takeover of a domain while the entity still operates, because the attacker controls the same URL the entity uses.
+
+This is the DNS trust problem that Trusteando inherits from the web. The protocol treats domain control as a proxy for institutional authority. That proxy is imperfect. Verifiers in high-stakes contexts should not rely on URL control alone — they should seek corroboration from independent nodes that recognise the entity, applying the quorum model of section 4.10.
+
+The autonomous identity mode is the correct long-term answer for entities that cannot accept DNS dependency. It decouples identity from URL, at the cost of losing the human-readable anchor that makes the protocol accessible.
+
+## 13.8 Intent vs Execution — the Protocol is a Notary, not an Executor
+
+The protocol records facts. It does not execute actions.
+
+When two banks publish compatible `transfer/fields {}` schemas, they become interoperable in the sense that a wallet can present the same form to both, and both can verify the signed intent with `verify_child_authorship`. This is genuine interoperability — it eliminates the integration cost at the schema layer.
+
+It does not eliminate the settlement layer. The bank’s internal systems remain responsible for verifying funds, applying compliance rules, and executing the actual movement of money. Trusteando records that the transfer was declared, by whom, with what authority, at what time. It does not move money.
+
+This distinction matters for how the protocol is described. The phrase “two banks that publish the same schema are interoperable by construction” is true at the declaration layer. It should not be read as “two banks can settle transactions without bilateral agreements” — settlement requires more than a common schema.
+
+The protocol is a notary: it creates tamper-evident, timestamped records of what was declared and by whom. Execution, settlement, and enforcement remain the responsibility of the systems and institutions that implement the actions the protocol records.
+
+## 13.9 The Bootstrap Paradox — Initial Centralisation
+
+The protocol is polycentric by design. It is not polycentric from day one.
+
+In the bootstrap phase, the founding author selects the initial group of trusted nodes, names the founding experts, and defines the initial governance structure. This is a necessary starting condition — a polycentric system needs a first node — but it is also a centralisation of trust that the protocol’s own principles argue against.
+
+The transition from bootstrap centralisation to genuine polycentricity is not automatic. It depends on enough independent nodes acquiring sufficient reputation to act as roots without reference to the founding author. The protocol provides the mechanism (section 4.10); it does not guarantee the outcome.
+
+This is documented honestly in Appendix F, where the governance model is described as a staged transition. What is not always clear in the main text is that v0.2 is closer to the bootstrap end of that spectrum than the polycentric end. The design is sound; the network is nascent.
+
+Verifiers in this phase should treat the protocol’s decentralisation as a property of the design, not a property of the current deployment. As the network of independent roots grows, the practical level of decentralisation will increase. Until then, a degree of trust in the founding infrastructure is unavoidable.
 
 ---
 

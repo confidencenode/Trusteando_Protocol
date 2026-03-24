@@ -1,0 +1,10 @@
+"docs: honest audit — add 13.7 DNS limits, 13.8 notary not executor, 13.9 bootstrap paradox
+
+Protocol names its own constraints explicitly:
+- DNS dependency inherited from the web
+- Intent vs execution distinction in 2.9 and 13.8  
+- Initial centralisation acknowledged in 13.9
+- Cache as performance not security in 13.6
+- 'recognised not learned' qualified as ideal not literal
+
+A protocol about truth should be truthful about itself."
