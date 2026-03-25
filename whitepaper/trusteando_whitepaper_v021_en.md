@@ -515,6 +515,58 @@ A property has no key because it is not a node — it is data belonging to its p
 
 This has a direct consequence for schema design. Any element that needs to sign independently must be expressed as `@` — placing it as a subfolder would imply that the parent derives its key, which is semantically wrong and cryptographically incorrect.
 
+### Path-pattern as a scope declaration
+
+The key hierarchy has a direct application in access control: any subtree of the graph can be named as a scope of authority. A `path-pattern` is a glob expression that matches a set of paths within the hierarchy — it delimits which branches a given agent or mandate is authorised to act on.
+
+```
+# Exact path — authority limited to one specific node
+trusteando/procedures/tax-filing
+
+# Domain wildcard — all nodes under a prefix
+trusteando/procedures/tax-*
+
+# Deep wildcard — any node at any depth under a root
+trusteando/procedures/*
+
+# Structural pattern — a specific relation across all subtrees
+trusteando/*/query
+```
+
+The key hierarchy makes `path-pattern` semantically precise: because each folder node is a cryptographic node, a pattern like `trusteando/procedures/tax-*` does not merely match a string prefix — it designates a contiguous subtree of the key hierarchy. An agent authorised for that pattern inherits trust over every node whose key derives from within that subtree, and no node outside it.
+
+Consider a mandate where a human principal authorises an AI agent to act on their behalf for tax procedures:
+
+```
+juan-ruiz.es/trusteando/mandates/
+└── [id:mandate-2026-001]/
+    ├── since/2026-01-01/
+    ├── until/2026-12-31/
+    ├── [agent @agente-fiscal.es]/
+    ├── [scope "trusteando/procedures/tax-*"]/   ← path-pattern
+    ├── [allows-machine-pace true]/
+    └── [firmante @juan-ruiz.es]/
+```
+
+The institution verifying this mandate checks two things independently:
+
+1. **Cryptographic validity** — the mandate is signed by the node that controls `juan-ruiz.es/trusteando/`, following the key hierarchy.
+2. **Scope match** — the action the agent is attempting to perform is at a path that matches `trusteando/procedures/tax-*`.
+
+These two checks are structurally independent. The first is a property of the key hierarchy; the second is a property of the path grammar. Neither can substitute for the other. A mandate signed by the correct key but with a pattern that does not cover the attempted action is invalid for that action. A pattern that covers the action but whose signature does not trace back to the correct key is cryptographically invalid.
+
+This is what §2.9 means when it states that the folder structure is simultaneously an identity, a role, a scope, and a permission: the `path-pattern` expresses scope using the same structural vocabulary as the rest of the protocol — no separate access-control language is required.
+
+The formal type declaration for `path-pattern` in a `fields {}` schema is:
+
+```
+mandates/ai-agents/fields {
+    scope    is-type path-pattern    ← glob over the Trusteando path space
+}
+```
+
+The distinction between `path-pattern` and `select-subset-from` is deliberate: `select-subset-from` enumerates a closed set of named options; `path-pattern` expresses an open structural domain. Use `select-subset-from` when the valid choices are finite and enumerable; use `path-pattern` when the authorised domain is defined by position in the hierarchy. The style guide (section 30) addresses this decision in detail.
+
 ## 2.13 Node Conformity States (Verifiado, Trusteado, Brokenado)
 
 The protocol is not an agnostic pipe. To ensure universal interoperability, it defines three mandatory semantic states that determine how a verifier must process a node or a branch of the graph:
@@ -641,6 +693,16 @@ contratos.es/trusteando/C-001/     ← object (the contract itself)
 ```
 
 The contract is an object — it has structure and data. The date is a property — pure data. The signing parties are `@` references — they sign from their own spaces, with their own keys, under their own authority. No special syntax is needed beyond `@` to express this distinction.
+
+**Design rule: when to use `@` vs a derived folder.** The choice has cryptographic consequences that are not visible in the syntax alone:
+
+| Situation | Use | Consequence |
+|---|---|---|
+| Organisational unit, role, or resource managed by the parent | `folder/` | Key derived from parent — parent controls, can recompute, can revoke |
+| Person, autonomous agent, or external institution with key sovereignty | `@entity` | Independent key — parent compromise does not expose this entity |
+| Entity that needs to sign across multiple contexts independently | `@entity` | A folder cannot sign outside its own subtree; `@` can |
+
+Natural persons and AI agents acting on behalf of a principal SHOULD be modelled as `@` signing entities rather than derived folders. A derived folder's identity is cryptographically dependent on its parent — if the parent's key is compromised, the child's key is computable by the attacker. A `@` entity's key is independently generated; no parent compromise can expose it. The folder structure records the relationship; the `@` syntax preserves the sovereignty.
 
 ## 2.14.3 The Type System
 
@@ -1562,6 +1624,10 @@ The pedagogical pseudocode uses `hash(result + element)` as shorthand. Productio
 
 When a parent node incorporates a child with a path segment, it grants it a derived key: child_key = HMAC-SHA256(key=parent_key, msg=TRUSTEANDO_GRANT_V1 + child_path_segment). The parent delivers child_key to the child over a secure channel. From that moment, the child knows its key, the parent can recompute it when necessary, and no one else knows it. The child never learns the parent's key—the direction of trust is strictly downward.
 
+**The derivation trade-off.** Deterministic key derivation is what makes the protocol stateless: a node that loses all its data can reconstruct every child key from its root key and the folder structure alone. No database required. This property has a direct cost: a compromised root key exposes all derived child keys in its subtree. This is the correct trade-off for organisational hierarchies — the same trade-off a traditional CA accepts — but it has two important mitigations that every implementor should know:
+
+- **Scope is limited to the subtree.** Trusteando is polycephalic by design (§4.10). Each root is an independent tree. Compromising `university-a.es` does not affect `university-b.es` or any other root. The "blast radius" of a compromised key is bounded by the subtree it controls.
+- **Identities can be independent of the hierarchy.** Any node that represents an entity requiring key sovereignty — a person, an autonomous agent, an external institution — SHOULD be declared as a signing entity (`@`) rather than a derived folder. A `@` node has its own independently generated key; compromising its parent does not expose it. See §2.14.2 for the design rule and §4.7 for the emergency key recovery path when a root is compromised.
 
 ## 4.11.3 respond_to_challenge: the Child Responds Without Revealing its Key
 
@@ -2864,14 +2930,103 @@ The following issues are identified but deliberately out of scope for this versi
 If an entity's URL disappears abruptly—sudden bankruptcy, domain loss—the credentials it issued lose their anchor. For orderly disappearances, the protocol facilitates transferring records to a successor. For abrupt disappearances, the solution lies outside the protocol—institutional or legal. The protocol honestly inherits that limitation.
 
 
-## 12.2 Scope of issued credentials
+## 12.2 Scope of Issued Credentials
 
-The protocol does not impose restrictions on what a recognized agent can certify. Mechanisms to declare and verify an agent's scope of competence will be designed in v0.3.
+The protocol does not impose restrictions on what a recognised agent can certify by default. Any `t9` node can publish any credential about any subject. This openness is a strength — it allows the protocol to model any domain without a central schema registry — but it creates a verifier problem: when a node issues a credential, how does the verifier know whether that node had legitimate authority to issue it?
+
+A university issuing academic degrees has legitimate authority. The same university issuing medical licenses does not. Without a declared scope of competence, a verifier cannot distinguish between the two cases from the graph alone.
+
+### The two-layer scope mechanism
+
+Credential scope operates at two independent layers that compose:
+
+**Layer 1 — Issuer scope declaration (at the issuer's identity node)**
+
+An agent declares the domain of credentials it is competent to issue under `identity/`:
+
+```
+uma.es/trusteando/identity/
+├── [scope "trusteando/registry/students/*"]/     ← issues credentials about students
+├── [scope "trusteando/registry/degrees/*"]/      ← issues degree credentials
+└── [scope "trusteando/registry/staff/*"]/        ← issues staff credentials
+```
+
+The `scope` field uses `path-pattern` (§2.12) — a glob expression over the Trusteando path space. An issuer claiming `trusteando/registry/students/*` is declaring competence over the student subtree, not over medical or financial credentials. A verifier who finds a medical license issued by `uma.es` and checks its declared scope will find no match — a clear signal that the credential is outside the issuer's declared domain.
+
+**Layer 2 — Credential scope restriction (at the credential itself)**
+
+Individual credentials can further restrict their valid use context using `[only-valid-for]` (§A.27):
+
+```
+uma.es/trusteando/registry/students/juan-ruiz/
+├── [state trusteado]/
+├── [only-valid-for student-discount library-access]/   ← closed scope
+└── since/2026-01-01/
+```
+
+`[only-valid-for]` is a closed declaration — everything not listed is excluded. Its complement, `[example-not-valid-for]`, declares an open scope with illustrative exclusions. The two are mutually exclusive on the same credential.
+
+### Verification flow
+
+When a verifier receives a credential, the scope check adds two steps to the standard verification sequence (§4.12):
+
+```
+... (standard cryptographic verification) ...
+6. Locate issuer's identity/scope declarations
+7. Check: does the issuer's declared scope cover this credential's path?
+   — If no scope declared → credential is valid but scope is UNVERIFIED
+   — If scope declared and matches → credential is SCOPE-VERIFIED
+   — If scope declared and does not match → credential is SCOPE-INVALID,
+     treat as advisory at best, reject for high-stakes use cases
+8. Check: does the credential carry [only-valid-for]?
+   — If yes → verify the requested use case is in the list
+   — If no → credential is valid for any use case the verifier accepts
+```
+
+**UNVERIFIED scope is not the same as invalid.** Many legitimate issuers will not declare scope in v0.3 — the mechanism is new. A verifier SHOULD treat undeclared scope as a signal to apply additional contextual judgment, not as automatic rejection. As the ecosystem matures and scope declaration becomes standard practice, verifiers MAY increase the weight of scope verification accordingly.
+
+### Scope delegation
+
+An authority can delegate scope to agents using the canonical Authority/Agent pattern (§7.13). The delegation is verifiable from the graph:
+
+```
+ministerio-educacion.es/trusteando/registry/agents/
+└── [id:uma-es]/
+    ├── [agent "uma.es/trusteando/"]/
+    ├── [delegated-scope "trusteando/registry/degrees/spain/universities/*"]/
+    └── since/2026-01-01/
+```
+
+A verifier checking whether UMA has authority to issue a Spanish university degree traces the chain: UMA's own scope declaration, then the Ministry's delegated scope entry. If both agree and the credential path matches, the credential is scope-verified with institutional backing.
+
+### What scope does not provide
+
+Scope declaration is a statement of intent and institutional role — it is not a technical enforcement mechanism. The protocol cannot prevent a node from issuing credentials outside its declared scope. What it can do is make out-of-scope issuance verifiably detectable: any verifier that checks scope declarations will find the mismatch. The social and institutional consequences of detected out-of-scope issuance — reputational damage, revocation by the root — are the enforcement mechanism, not the cryptography.
 
 
-## 12.3 Advanced privacy via zero-knowledge proofs
+## 12.3 Advanced Privacy via Zero-Knowledge Proofs
 
-A zero-knowledge proof–based implementation would allow demonstrating the validity of a credential without revealing any element of the chain. This is a research direction for future versions.
+The current privacy model has a ceiling: `private/` hides content and relationship identity, but its existence is still visible. A verifier who queries `universidad.es/trusteando/private/` knows something is being hidden there, even if they cannot see what. For cases where even the existence of a relationship must be invisible — whistleblower protection, sensitive medical associations, high-risk political affiliations — this ceiling is insufficient.
+
+Zero-knowledge proofs (ZKP) address this by allowing a prover to demonstrate the validity of a credential without revealing any element of the underlying chain: not the issuer, not the subject path, not the relationship structure. The verifier learns only that a valid credential exists and satisfies the stated predicate.
+
+**The three ZKP use cases for this protocol:**
+
+**Use case 1 — Membership proof without path disclosure.** A holder proves they are a member of a set (e.g., "accredited by some university in Spain") without revealing which university or what their path in the graph is. The verifier learns the predicate is satisfied; the graph path remains hidden.
+
+**Use case 2 — Attribute range proof.** A holder proves an attribute satisfies a predicate (e.g., "age ≥ 18", "credit score ≥ 700") without revealing the attribute value. This is a well-understood ZKP application; the protocol's `fields {}` type system provides the attribute schema that the proof targets.
+
+**Use case 3 — Private/ existence concealment.** A holder proves a credential exists at a path matching a pattern without revealing the path itself — not even that a `private/` folder exists at that location. This is the ceiling case described in §12.7.
+
+**Candidate primitives:**
+
+- **zk-SNARKs** (Groth16, PLONK): compact proofs, efficient verification, trusted setup required. Suitable for use cases 1 and 2 where the circuit can be pre-compiled for common predicates (membership, range, credential validity).
+- **zk-STARKs**: no trusted setup, larger proofs, post-quantum resistant. More appropriate for high-assurance contexts where trusted setup ceremonies are operationally unacceptable.
+- **Bulletproofs**: efficient range proofs without trusted setup, larger than SNARKs. Well-suited for use case 2 specifically.
+
+**Integration point with the protocol.** ZKP is an application-layer extension, not a core protocol change. The graph structure and key hierarchy remain unchanged. A ZKP layer would operate as follows: the prover generates a proof over a credential or path they hold; the proof references the graph's public commitments (hash values, public keys) without revealing the preimages; the verifier checks the proof against those public commitments. The protocol's `hash_publico` values (§4.7) are natural public commitments for ZKP circuits to target.
+
+The formal specification of ZKP integration will be addressed in a future version, after reference implementations in two languages (roadmap v0.3) establish the baseline verification infrastructure that ZKP proofs would extend.
 
 
 ## 12.4 Standard format for the transaction layer
@@ -2899,7 +3054,7 @@ This is not a flaw in the protocol — it is a characteristic of a public-by-def
 
 **Layer 2 — The responsibility is the implementor’s.** The protocol cannot enforce good modelling decisions. An implementor who publishes `universidad.es/profesores/juan-ruiz/` when they should have published `universidad.es/private/profesores/juan-ruiz/` has leaked a relationship by design choice, not by protocol failure. This is why the note on schema design in section 1.2 exists — the grammar is simple, but designing structures that faithfully protect privacy requires domain modelling skill.
 
-**Layer 3 — The ceiling requires ZKP.** Even with correct use of `private/`, the existence of a `private/` folder at a given path signals that something is being hidden there. For cases where even that signal is too much — where the existence of the relationship itself must be invisible to anyone without prior access — zero-knowledge proofs are the necessary extension. This is a research direction for future versions (section 12.3). The current protocol handles the common cases; ZKP handles the edge cases where even metadata must be invisible.
+**Layer 3 — The ceiling requires ZKP.** Even with correct use of `private/`, the existence of a `private/` folder at a given path signals that something is being hidden there. For cases where even that signal is too much — where the existence of the relationship itself must be invisible to anyone without prior access — zero-knowledge proofs are the necessary extension. Section 12.3 describes the three ZKP use cases, the candidate primitives, and the integration point with the protocol's public commitments. The current protocol handles the common cases; ZKP handles the edge cases where even metadata must be invisible.
 
 
 ## 12.8 Legal Framework for Dispute Resolution
@@ -2948,7 +3103,82 @@ uma.es/trusteando/vocabulary/aliases/
 
 ### What the protocol deliberately does not provide
 
-The protocol does not mandate a single global ontology. Mandating one would require a central authority to govern it — exactly the structural dependency the protocol is designed to eliminate. Vocabulary convergence is an application-layer concern, not a protocol-layer one. The formal specification of distributed vocabulary repositories and alias declarations will be addressed in v0.3.
+The protocol does not mandate a single global ontology. Mandating one would require a central authority to govern it — exactly the structural dependency the protocol is designed to eliminate. Vocabulary convergence is an application-layer concern, not a protocol-layer one.
+
+### Formal specification — distributed vocabulary repositories
+
+A vocabulary repository is a node that publishes canonical term definitions at a well-known path. Any node with sufficient reputation can operate one; T10 operates the root repository by convention, not by protocol authority.
+
+The canonical structure of a vocabulary repository is:
+
+```
+T10/vocabularies/
+├── healthcare/
+│   ├── fields {
+│   │   relation   is-type string
+│   │   since      is-type date
+│   │   deprecated is select-one-from { true, false }
+│   │   replaces   is-type url
+│   │ }
+│   ├── [id:is-prescribed-by]/
+│   │   ├── [relation "is-prescribed-by"]/
+│   │   └── since/2026-01-01/
+│   └── [id:diagnosis-code:icd10]/
+│       ├── [relation "diagnosis-code"]/
+│       └── since/2026-01-01/
+├── education/
+│   └── [id:is-accredited-by]/
+│       ├── [relation "is-accredited-by"]/
+│       └── since/2026-01-01/
+└── banking/
+    └── [id:iban]/
+        ├── [relation "iban"]/
+        └── since/2026-01-01/
+```
+
+**Repository MUST rules:**
+
+- Each term entry MUST have a `since/` timestamp marking when the term was accepted.
+- Deprecated terms MUST remain published with `[deprecated true]` and a `[replaces <successor-url>]` pointer. Entries are never deleted — they are retired in place.
+- A repository node is identified by its URL. Trust in its vocabulary follows the same key hierarchy as any other node: a verifier who trusts `T10/` transitively trusts `T10/vocabularies/` unless explicitly revoked.
+- Any entity may operate a sector repository under its own domain: `uma.es/trusteando/vocabularies/education/`. Its terms carry the trust level of `uma.es`, not of T10.
+
+**Versioning:** when a term's semantics change in a backwards-incompatible way, a new entry is published with a new identifier and the old entry is deprecated. The `since/` timestamps form the version history without requiring a separate changelog.
+
+### Formal specification — alias declaration mechanism
+
+An alias declaration maps a local term to a canonical vocabulary term without modifying the node's published paths. It is a one-way assertion: "when I write `city`, I mean what `T10/vocabularies/education/is-located-in` means."
+
+The canonical structure is:
+
+```
+uma.es/trusteando/vocabulary/aliases/
+├── fields {
+│   local-term    is-type string    ← the term as used in this node's paths
+│   maps-to       is-type url       ← canonical term URL in a vocabulary repository
+│   since         is-type date
+│   context       is-type string    ← optional: limits the alias to a path subtree
+│ }
+├── [id:alias-city]/
+│   ├── [local-term "city"]/
+│   ├── [maps-to "T10/vocabularies/education/is-located-in"]/
+│   └── since/2026-01-01/
+└── [id:alias-location]/
+    ├── [local-term "location"]/
+    ├── [maps-to "T10/vocabularies/education/is-located-in"]/
+    └── since/2026-01-01/
+```
+
+**Alias MUST rules:**
+
+- Aliases are signed by the declaring node. A verifier MAY use them to normalise queries but MUST NOT treat an alias as a claim about the vocabulary repository itself.
+- The `maps-to` URL MUST resolve to a valid term entry in a vocabulary repository node. A broken `maps-to` reference downgrades the alias to advisory status — verifiers SHOULD warn, not reject.
+- The optional `[context "path-pattern"]` field limits the alias to paths matching that pattern. Without `context`, the alias applies to all uses of the `local-term` within the declaring node's subtree.
+- Aliases are not transitive. If `uma.es` maps `city` → `T10/.../is-located-in`, and `hospital-malaga.es` maps `is-located-in` → some other term, that chain does NOT make `city` (at UMA) equivalent to the hospital's target.
+
+### Divergence detection
+
+Tooling that indexes the graph can identify vocabulary divergence by comparing alias declarations across nodes in the same sector. When a majority of education nodes in a region have aliased `city` to `T10/vocabularies/education/is-located-in`, a node that uses `city` without an alias declaration is flagged as a divergence candidate — not as invalid, but as a candidate for alignment outreach. This is Mechanism 3 as an operational reality: the protocol provides the data; the tooling provides the signal.
 
 
 ## 12.10 Name Discovery and Registry
@@ -2982,13 +3212,163 @@ The real problem is discovery: a user who only knows the name "Universidad de M�
 
 Two nodes could claim the same readable name. Without an authoritative registry, the protocol alone cannot resolve which node has the right to the name. The solution relies on the quorum system (section 4.10): a name is considered established when a quorum of reputable nodes publish the same association. Disputes are resolved through the dispute resolution mechanism (Appendix B), where the weight of evidence — which nodes support each version — determines the outcome.
 
-**Direction for future versions**
+**### Formal specification — the three-component name system**
 
-The formal name system specification will have three components: local declaration by the node, third-party attestation by reputable nodes, and quorum-based resolution. The resulting system is decentralised, dispute-resistant, and compatible with the rest of the protocol without adding new infrastructure. The concrete implementation will be addressed in v0.3.
+The name system has three independent components that compose without requiring coordination between them. A verifier can use any subset — the more components it checks, the stronger the association.
+
+**Component 1 — Self-declaration (authoritative for the node itself)**
+
+The node publishes its own names under `identity/`. This is authoritative for the node's self-representation but does not resolve the reverse discovery problem (name → URL) for a verifier who does not already know the URL.
+
+```
+uma.es/trusteando/identity/
+├── [official-name "Universidad de Málaga"]/
+├── [acronym "UMA"]/
+├── [also-known-as "University of Malaga"]/
+└── [also-known-as "Université de Málaga"]/   ← multiple values allowed
+```
+
+A verifier who already has `uma.es` reads this directly. No external registry required.
+
+**Component 2 — Third-party attestation (resolves reverse discovery)**
+
+Any node with sufficient trust level can attest that a human-readable name refers to a specific URL. Attestations live under the attesting node's own subtree, not under the subject's:
+
+```
+T10/registry/names/
+├── fields {
+│   name           is-type string      ← the human-readable name being attested
+│   refers-to      is-type url         ← the node being named
+│   since          is-type date
+│   confidence     is select-one-from { confirmed, provisional }
+│ }
+├── [id:uma-es]/
+│   ├── [name "Universidad de Málaga"]/
+│   ├── [refers-to "uma.es/trusteando/"]/
+│   ├── [confidence confirmed]/
+│   └── since/2026-01-01/
+└── [id:uma-es-en]/
+    ├── [name "University of Malaga"]/
+    ├── [refers-to "uma.es/trusteando/"]/
+    ├── [confidence confirmed]/
+    └── since/2026-01-01/
+```
+
+Any node may publish attestations under its own `registry/names/` path — not only T10. A sector association, a national registry, or a reputable institution can each operate an attestation registry. Trust in the attestation follows the trust level of the attesting node: an attestation by a `t9` national registry carries more weight than one by an unknown `v9` node.
+
+**Component 3 — Quorum-based resolution (resolves name conflicts)**
+
+When two or more nodes claim the same human-readable name, resolution follows the quorum mechanism (§4.10). A verifier collects attestations from independent reputable nodes and applies the following rule:
+
+- If a qualified majority of reputable attesters agree on the `name → URL` mapping, the association is considered **established**.
+- If attestations are split, the association is **contested** — the verifier SHOULD surface the conflict rather than silently picking one.
+- An established association can be challenged through the dispute resolution mechanism (Appendix B). The challenging party must present evidence that the quorum of attesters was mistaken or colluded.
+
+The quorum threshold is not fixed by the protocol — it is a verifier policy. A wallet used for low-stakes discovery may accept a single `t9` attestation; an institution processing high-value credentials may require three independent national registries.
+
+**Composing the three components**
+
+A verifier performing name discovery SHOULD follow this sequence:
+
+```
+1. Query known attestation registries for name → URL candidates
+2. For each candidate URL, verify Component 1: does the node self-declare this name?
+3. Count independent attestations (Component 2) and check against threshold
+4. If threshold met and self-declaration matches → association is established
+5. If conflict → surface as contested, do not silently resolve
+```
+
+Steps 1–3 can be performed offline if the verifier has a cached snapshot of the relevant registries. Name discovery does not require a live query to any central service.
+
+**What this system does not provide**
+
+The protocol does not reserve the right to a name. Two entities may legitimately share a human-readable name — "Banco de Madrid" could refer to different institutions in different jurisdictions. The quorum system establishes which node a given community of attesters associates with a given name; it does not grant exclusive ownership. Trademark and naming rights remain outside the protocol, enforced by legal frameworks, not by the graph.
 
 ## 12.11 Active Authentication with Key Rotation
 
-The protocol defines the emergency key for migrations but does not specify an interactive active authentication mechanism. A natural extension is atomic rotation: the wallet generates a new key and publishes it on the web before revealing the old one to the verifier. The flow is: (1) wallet generates clave_2 and publishes hash_publico_2, (2) wallet waits for confirmation that hash_publico_2 is active, (3) wallet reveals clave_1 to the verifier, (4) verifier checks HMAC-SHA256(key=clave_1, msg=TRUSTEANDO_IDENTITY_V1 + entity_id) == hash_publico_1. Each authentication consumes the revealed key, turning the system into a one-time password mechanism cryptographically anchored in the node's identity. The formal specification of this mechanism will be addressed in future versions.
+The protocol defines the emergency key for identity migration but does not specify an interactive authentication mechanism for repeated use. The emergency key is a one-time instrument — revealing it transfers identity. Active authentication requires a different primitive: a key that proves identity at each use without being consumed by the act of proving.
+
+The natural extension is **atomic key rotation with one-time authentication**: each authentication event reveals the current key and simultaneously publishes its successor. The revealed key proves identity; the successor key, already public as a hash commitment before the reveal, ensures the authentication cannot be replayed.
+
+### The atomic rotation flow
+
+```
+State before authentication:
+  Node publishes: hash_publico_N  (commitment to current key clave_N)
+  Node holds:     clave_N         (secret, never published)
+
+Step 1 — Wallet prepares successor key:
+  clave_(N+1)     ← generated locally
+  hash_publico_(N+1) = HMAC-SHA256(
+                         key   = clave_(N+1),
+                         msg   = TRUSTEANDO_IDENTITY_V1 + entity_id
+                       )
+
+Step 2 — Wallet publishes successor commitment:
+  entity.es/trusteando/identity/auth/
+  └── hash_publico_(N+1)/    ← published before revealing clave_N
+
+Step 3 — Wallet waits for confirmation:
+  Verifier (or any observer) can confirm hash_publico_(N+1) is live
+  at the canonical path before the reveal proceeds.
+
+Step 4 — Wallet reveals current key to verifier:
+  → sends clave_N over the authenticated channel
+
+Step 5 — Verifier checks:
+  HMAC-SHA256(key=clave_N, msg=TRUSTEANDO_IDENTITY_V1 + entity_id)
+    == hash_publico_N   ← previously published commitment
+
+Step 6 — Wallet retires current key:
+  entity.es/trusteando/identity/auth/
+  └── hash_publico_N/
+      └── revoked/since/<timestamp>/   ← clave_N is now spent
+```
+
+After step 6, `hash_publico_(N+1)` is the active commitment. The cycle repeats from step 1 for the next authentication.
+
+### Security properties
+
+**Forward secrecy.** Revealing `clave_N` does not compromise `clave_(N+1)` or any future key. Each key is independently generated. A passive observer who recorded every previous authentication cannot derive future keys.
+
+**Replay prevention.** `clave_N` is marked spent in the graph immediately after use. A verifier who checks the `revoked/` subfolder under `hash_publico_N` will reject a second presentation of the same key. The graph is the replay log — no session state required on the verifier side.
+
+**Atomicity guarantee.** Step 2 (publish successor) happens before step 4 (reveal current key). If the wallet crashes between steps 2 and 4, the node retains a valid unpublished `clave_N` and a live `hash_publico_(N+1)`. Recovery is straightforward: complete the reveal, or retire `hash_publico_N` without revealing it and advance to `clave_(N+1)`.
+
+### Path structure
+
+```
+entity.es/trusteando/identity/auth/
+├── [active-commitment "hash_publico_N"]/     ← current active key hash
+├── hash_publico_N/
+│   └── since/2026-01-01T09:00:00Z/
+├── hash_publico_(N-1)/
+│   ├── since/2025-12-01T10:00:00Z/
+│   └── revoked/since/2026-01-01T09:00:00Z/  ← spent after use
+└── hash_publico_(N-2)/
+    ├── since/2025-11-01T08:00:00Z/
+    └── revoked/since/2025-12-01T10:00:00Z/
+```
+
+The `auth/` subfolder is a public audit log of every authentication event. Each entry carries a `since/` timestamp and, once spent, a `revoked/` timestamp. The log is append-only and signed by the entity.
+
+### MUST rules for implementations
+
+- A wallet MUST publish `hash_publico_(N+1)` and wait for it to be resolvable at the canonical path before revealing `clave_N` to any verifier.
+- A verifier MUST check that `hash_publico_N` is present and NOT marked `revoked/` before accepting a reveal of `clave_N`. A spent key MUST be rejected even if the HMAC equation holds.
+- A wallet MUST publish `revoked/` under `hash_publico_N` immediately after a successful reveal. It MUST NOT reuse `clave_N` after marking it spent.
+- A verifier MUST NOT cache authentication state. Each authentication event is independent. The graph is the source of truth.
+
+### Relationship to the emergency key
+
+Active authentication and the emergency key serve different purposes and MUST NOT share the same key material:
+
+| Mechanism | Purpose | Revealed? | Reusable? |
+|---|---|---|---|
+| Emergency key (`clave_emergencia`) | Identity migration, orphan recovery | Once, transfers identity | No — single use transfers control |
+| Active auth key (`clave_N`) | Repeated authentication | Once per cycle, then spent | No — each use rotates to next key |
+
+A node MUST maintain these as separate key chains. Using the emergency key for active authentication would consume it and leave the node without a migration path.
 
 
 ## 12.12 Metadata Leakage in Path Structure
@@ -3028,7 +3408,90 @@ The observer replica model with a hysteresis threshold (section 4.3) introduces 
 
 ## 12.14 Social Identity Recovery
 
-The secret custody mechanism via collaborating wallets (section F.1) addresses key loss for the protocol author but does not specify a generic mechanism for any entity. Without social recovery, a node's emergency key loss is irreversible: its history remains orphaned permanently. The natural direction is Shamir's Secret Sharing: fragment the key among N trusted guardians so that any subset of M of them can reconstruct it. The guardians are entities from the graph itself—university, employer, official registry—named by the node using the [agent role] convention. The formal specification of this mechanism will be addressed in future versions.
+The secret custody mechanism via collaborating wallets (section F.1) addresses key loss for the protocol author but does not specify a generic mechanism for any entity. Without social recovery, a node's emergency key loss is irreversible: its history remains orphaned permanently.
+
+The generic mechanism is **Shamir's Secret Sharing (SSS)**: the emergency key is split into N shares distributed among trusted guardians, such that any subset of M shares (M ≤ N) is sufficient to reconstruct it. No single guardian holds the full key. An attacker must compromise at least M guardians simultaneously — a threshold that can be set to match the node's threat model.
+
+### Guardian declaration
+
+Guardians are entities from the graph, named by the node using the `[agent role]` convention under a dedicated `recovery/` subfolder:
+
+```
+juan-ruiz.es/trusteando/recovery/
+├── fields {
+│   guardian      is-type url          ← guardian node URL
+│   role          is-type string       ← always "recovery-guardian"
+│   share-index   is-type integer      ← which share this guardian holds (1..N)
+│   since         is-type date
+│ }
+├── [quorum 2]/                        ← M: minimum shares needed to reconstruct
+├── [shares 3]/                        ← N: total shares distributed
+├── [id:guardian-1]/
+│   ├── [guardian "uma.es/trusteando/"]/
+│   ├── [role "recovery-guardian"]/
+│   ├── [share-index 1]/
+│   └── since/2026-01-01/
+├── [id:guardian-2]/
+│   ├── [guardian "juan-employer.es/trusteando/"]/
+│   ├── [role "recovery-guardian"]/
+│   ├── [share-index 2]/
+│   └── since/2026-01-01/
+└── [id:guardian-3]/
+    ├── [guardian "T10/trusteando/"]/
+    ├── [role "recovery-guardian"]/
+    ├── [share-index 3]/
+    └── since/2026-01-01/
+```
+
+The `recovery/` declaration is public — it is signed by the node and visible to any verifier. What is NOT published is the share content itself. Each guardian receives their share through an out-of-band channel (encrypted delivery, in-person, or via the reference wallet's secure enclave mechanism). The graph declares who the guardians are; it does not publish what they hold.
+
+### Recovery flow
+
+When a node loses its emergency key:
+
+```
+1. Node (or its designated representative) contacts M or more guardians
+2. Each guardian verifies the identity of the claimant independently:
+   — checks the claimant controls the node's URL (e.g. can publish there)
+   — or presents out-of-band proof accepted by the guardian's own policy
+3. Each cooperating guardian publishes a recovery consent under their own node:
+
+   uma.es/trusteando/recovery-consents/
+   └── [id:consent-juan-ruiz-2026]/
+       ├── [for "juan-ruiz.es/trusteando/"]/
+       ├── [share-index 1]/
+       ├── since/2026-06-01T10:00:00Z/
+       └── [firmante @uma.es]/
+
+4. Once M consents are published, the node reconstructs clave_emergencia
+   from the M shares using SSS reconstruction
+5. Node performs standard identity migration (§4.7) using reconstructed key
+6. Node generates new clave_emergencia, distributes new shares to guardians,
+   and updates recovery/ with new share-index entries and since/ timestamps
+```
+
+The consent publication in step 3 is the guardian's signed statement that they participated in this recovery. It is permanently in the graph — auditable by any verifier. A guardian cannot later deny having cooperated.
+
+### Security properties
+
+**Threshold resistance.** An attacker who compromises fewer than M guardians gains no information about `clave_emergencia` — SSS shares below the threshold are information-theoretically independent of the secret.
+
+**Guardian diversity.** The node chooses guardians from structurally independent domains: a university, an employer, a public registry. Compromising M guardians requires compromising M separate institutions, each with their own security posture. The threat resistance scales with the independence of the chosen guardians.
+
+**No guardian can act unilaterally.** A single guardian holding one share cannot reconstruct the key, cannot initiate a recovery, and cannot block a legitimate recovery once M others have consented. The quorum is enforced by the mathematics of SSS, not by a policy rule.
+
+**Recovery is auditable.** Every step leaves a permanent graph record: the guardian declaration, each consent publication, and the subsequent migration. Any verifier can reconstruct the full recovery event from public graph data.
+
+### MUST rules
+
+- A node that declares a `recovery/` subtree MUST distribute shares to all declared guardians before the declaration takes effect. Publishing `recovery/` without distributing shares creates a false security guarantee.
+- Guardians MUST establish their own identity-verification policy for recovery requests and publish it under their node. A guardian with no published policy SHOULD be considered unreliable for recovery purposes.
+- After a successful recovery, the node MUST rotate all shares: generate new `clave_emergencia`, distribute new shares, and update `recovery/` with new `since/` timestamps. Reusing shares after a recovery event weakens the threshold guarantee.
+- The `[quorum M]` value MUST satisfy M ≥ 2. A quorum of 1 is equivalent to single-guardian custody and provides no threshold protection.
+
+### Relationship to F.1
+
+The mechanism described here is the generic form of the author-specific custody described in section F.1. F.1 uses collaborating wallets as guardians and keeps the operational configuration private; this section specifies the graph-native declaration and recovery flow that any entity can use. The cryptographic primitive (SSS) and the graph patterns (`recovery/`, `[quorum N]`, consent publication) are identical in both cases.
 
 
 ## 12.15 Verification Load in Deep Chains
@@ -3180,6 +3643,32 @@ The first Trust Inference specification — **Trusteando-Inference v0.1** — is
 
 
 > **Implementation Guide §11** — Fork semantics and the three verifier policies (latest-wins, quorum consensus, multi-branch coexistence) that implementations MUST declare are in `trusteando_implementation_guide.md`.
+
+---
+
+## 13.11 Hierarchical Key Derivation — Power and Exposure
+
+Deterministic key derivation (`grant_key`, §4.11.2) is one of the protocol's most consequential design choices. It enables stateless reconstruction — a node that loses all its data can recompute every child key from its root key and the folder structure. No external database, no key escrow, no coordination required. It is the property that makes the protocol deployable without infrastructure.
+
+The cost is equally consequential: **a compromised root key exposes every key derived from it**. An attacker who obtains the root key of a hierarchy can compute any child key, impersonate any derived node, and sign new content as if they were any entity in the subtree. Past signatures — signed before the compromise — remain valid and cannot be forged retroactively. But new forgeries become possible until the compromise is detected and the root is revoked.
+
+This is not a bug. It is the same trade-off that every traditional Certificate Authority accepts. A CA's root key compromise is catastrophic within its scope. The mitigations are the same as in the CA world, and Trusteando makes them explicit:
+
+**Mitigation 1 — Scoped blast radius.** The protocol is polycephalic by design (§4.10). There is no global root. Each institution operates its own tree. Compromising `university-a.es` does not affect `university-b.es`, T10, or any other root. The damage is bounded by the subtree. An institution with good security hygiene — hardware-secured root keys, offline storage, split custody — is not at risk from the compromise of a different institution.
+
+**Mitigation 2 — Sovereign identities break the chain.** A node declared as a `@` signing entity (§2.14.2) has a key that was generated independently — not derived from any parent in this hierarchy. Compromising the parent cannot expose a `@` entity's key. This is the correct model for natural persons, autonomous agents, and any entity that requires key sovereignty independent of the institution that hosts them. The folder records the relationship; the `@` syntax preserves the sovereignty. Organisations that model their members as derived folders are making a deliberate choice to centralise key control — appropriate for managed resources, inappropriate for sovereign identities.
+
+**Mitigation 3 — Emergency key and root revocation.** Every node holds an emergency key (`clave_emergencia`, §4.7) that is independent of the derivation hierarchy. When a root is compromised, the correct response is not a global version rotation — that would invalidate all legitimate credentials in the subtree, not just the attacker's. The correct response is: mark the root as `brokenado`, removing its signatures from quorum weight; then each child node migrates to a new root using its emergency key. The child's identity survives; the compromised root does not.
+
+**What version rotation is and is not.** The domain separation strings (`TRUSTEANDO_GRANT_V1`, §4.11.1) and MAJOR version increments (§2.20) provide forward versioning — a future protocol version can change key derivation semantics without conflicting with the current one. They are not a revocation mechanism. Rotating from `V1` to `V2` invalidates all derivations across the entire network, not just those under a compromised root. This is a scheduled protocol upgrade, not an incident response tool.
+
+**The open question.** The protocol does not yet specify a normative recommendation for how institutions should structure their key hierarchies to minimise exposure. Specifically: at what depth should `@` entities replace derived folders for member identities? A university with ten thousand students modelled as derived folders has a very different risk profile than one where each student is a `@` entity. The style guide will address this in a future section; the current guidance is the design rule in §2.14.2.
+
+**The Trust Segmentation Principle.** Until that guidance exists, implementors designing hierarchies should apply three rules:
+
+1. **Limit scope.** Do not use a single master key for an entire organisation. Segment by department, division, or functional domain — each with an independent root secret. A compromise then affects one segment, not the whole institution.
+2. **Favour attestation over derivation for identities.** The root's role should tend toward attesting external `@` identities rather than generating subordinate derived ones. A root that signs `[trusteado @juan-ruiz.es]` preserves Juan's sovereignty. A root that derives `professors/juan-ruiz/` absorbs it.
+3. **Plan for rotation as a rare, high-friction event.** Key derivation rotation (§2.20 MAJOR increment) is a network-wide event, not an incident response tool. Design hierarchies assuming rotation will never happen; rely on emergency key migration (§4.7) and root revocation for incident response. Architectures that depend on easy rotation have misunderstood the threat model.
 
 ---
 

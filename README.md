@@ -47,7 +47,7 @@ class TrusteandoNode:
 ```
 Trusteando_Protocol/
 ├── whitepaper/
-│   ├── trusteando_whitepaper_v021_en.md   ← full specification v0.2.1
+│   ├── trusteando_whitepaper_v021_en.md   ← full specification (v0.2.1 + v0.3 additions)
 │   ├── trusteando_style_guide.md           ← naming conventions and best practices
 │   ├── trusteando_quickstart.md            ← Level 1 and Level 2 guide
 │   ├── trusteando_cookbook.md              ← practical examples by domain
@@ -74,7 +74,7 @@ Trusteando is one of three protocols under [github.com/confidencenode](https://g
 
 ---
 
-## Current status — v0.2.1
+## Current status — v0.2.1 + v0.3 additions
 
 **Stable (will not change):**
 - `TrusteandoNode` and its four functions
@@ -82,6 +82,17 @@ Trusteando is one of three protocols under [github.com/confidencenode](https://g
 - `since/until` temporal model
 - `private/` access control
 - The three conformity states (b9/v9/t9)
+
+**Added in this cycle (v0.3 prep):**
+- Formal spec: credential scope mechanisms (§12.2)
+- Formal spec: distributed vocabulary repositories and alias declarations (§12.9)
+- Formal spec: name discovery — three-component system (§12.10)
+- Formal spec: active authentication with key rotation (§12.11)
+- Formal spec: social identity recovery via Shamir's Secret Sharing (§12.14)
+- ZKP direction: three use cases, candidate primitives, integration point (§12.3)
+- Normative design rule: `@` vs derived folder for natural persons (§2.14.2)
+- New section: hierarchical key derivation — power and exposure + Trust Segmentation Principle (§13.11)
+- `path-pattern` formal example in scope context (§2.12)
 
 **May evolve:**
 - Sector-specific vocabulary

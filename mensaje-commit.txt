@@ -1,0 +1,56 @@
+feat(whitepaper): v0.3 additions — formal specs for 9 pending sections + clarity improvements
+
+## What this commit adds
+
+### New formal specifications (whitepaper §12)
+- **§12.2** — Credential scope mechanisms: two-layer system (issuer scope declaration via
+  path-pattern + per-credential [only-valid-for] restriction), verification flow with
+  SCOPE-VERIFIED / SCOPE-UNVERIFIED / SCOPE-INVALID states, scope delegation via
+  Authority/Agent pattern (§7.13)
+- **§12.3** — ZKP direction: three concrete use cases (membership proof, attribute range
+  proof, private/ existence concealment), candidate primitives (zk-SNARKs, zk-STARKs,
+  Bulletproofs), integration point with hash_publico commitments
+- **§12.9** — Distributed vocabulary repositories: formal structure, MUST rules, versioning
+  via since/ timestamps, sector repositories under own domains
+- **§12.9** — Alias declaration mechanism: formal structure with fields {}, MUST rules
+  (one-way assertion, non-transitive, optional context path-pattern), divergence detection
+- **§12.10** — Name discovery: three-component formal spec (self-declaration, third-party
+  attestation via registry/names/, quorum-based conflict resolution), offline-capable
+  verification sequence, explicit scope boundary (no name ownership)
+- **§12.11** — Active authentication with key rotation: atomic 6-step rotation flow,
+  security properties (forward secrecy, replay prevention, atomicity guarantee), path
+  structure for auth/ audit log, MUST rules, comparison table vs emergency key
+- **§12.14** — Social identity recovery via Shamir's Secret Sharing: guardian declaration
+  under recovery/ with fields {}, recovery flow with consent publication, security
+  properties (threshold resistance, guardian diversity, auditability), MUST rules,
+  relationship to F.1
+
+### Clarity improvements (addressing reviewer feedback)
+- **§2.12** — New subsection: path-pattern as scope declaration, formal example with
+  AI agent mandate, two independent verification checks (cryptographic + scope match),
+  decision rule path-pattern vs select-subset-from, forward ref to style guide §30
+- **§2.14.2** — Normative design rule table: @ vs derived folder, explicit cryptographic
+  consequences per choice; natural persons and AI agents SHOULD use @
+- **§4.11.2** — Derivation trade-off paragraph: names the stateless/exposure trade-off
+  explicitly at the point where grant_key is introduced, with cross-references to §4.7,
+  §4.10, §2.14.2
+- **§12.7** — ZKP ceiling reference updated to point to expanded §12.3
+- **§13.11** — New section: Hierarchical key derivation — power and exposure. Consolidates
+  the full argument (scoped blast radius, sovereign identities break the chain, emergency
+  key vs version rotation, the open question). Closes with the Trust Segmentation
+  Principle: three actionable rules for implementors designing hierarchies
+
+### Files updated
+- whitepaper/trusteando_whitepaper_v021_en.md (+489 lines, 5331 → 5820)
+- whitepaper/pendientes.txt (all whitepaper v0.3 items marked [x], style guide §32 added)
+- README.md (status section updated with "Added in this cycle" list)
+
+## What remains pending (v0.3 ecosystem)
+- Style guide §30 — path-pattern vs select-subset-from decision guide
+- Style guide §31 — domain migration patterns (old-identities/)
+- Style guide §32 — HTTP integration pattern (/.well-known/trusteando-proof)
+- BNF grammar validation with reference parser
+- Conformance test suite (referenced in §1.5 and §1.6)
+- Trusteando-Inference v0.1 spec
+- Reference wallet spec
+- Reference implementations in two languages

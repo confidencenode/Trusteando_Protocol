@@ -1,5 +1,5 @@
 # Trusteando Protocol — Pendientes
-# Actualizado: marzo 2026 — v0.2.1
+# Actualizado: marzo 2026 — v0.2.1 → v0.3 prep
 
 ## Estado v0.2.1 — CERRADO
 
@@ -52,21 +52,30 @@
 
 ---
 
-## Pendientes v0.3 (próxima versión)
+## Whitepaper v0.3 — COMPLETADO EN ESTA SESIÓN
 
-### Whitepaper
-- [ ] 2.12 — añadir ejemplo formal de path-pattern en el contexto de scope
-- [ ] Sección sobre distributed vocabulary repositories (prometido en 12.9)
-- [ ] Alias declaration mechanism formal spec (prometido en 12.9)
-- [ ] Social identity recovery formal spec — Shamir (prometido en 12.14)
-- [ ] Active authentication with key rotation (prometido en 12.11)
-- [ ] Name discovery formal spec — tres componentes (prometido en 12.10)
-- [ ] Credential scope mechanisms (prometido en roadmap v0.3)
-- [ ] ZKP direction (prometido en 12.3 y 12.7)
+- [x] 2.12 — ejemplo formal de path-pattern en contexto de scope
+- [x] 2.14.2 — design rule normativa @ vs derived folder (personas físicas SHOULD usar @)
+- [x] 4.11.2 — párrafo de trade-off derivación jerárquica con referencias cruzadas
+- [x] 12.2 — Credential scope mechanisms (two-layer: issuer declaration + credential restriction)
+- [x] 12.3 — ZKP direction (tres use cases, primitivas candidatas, integration point)
+- [x] 12.7 — ZKP ceiling reference actualizada → apunta a §12.3 expandida
+- [x] 12.9 — Distributed vocabulary repositories (spec formal con MUST rules)
+- [x] 12.9 — Alias declaration mechanism (spec formal con MUST rules)
+- [x] 12.10 — Name discovery formal spec — tres componentes
+- [x] 12.11 — Active authentication with key rotation (spec completa)
+- [x] 12.14 — Social identity recovery formal spec — Shamir (spec completa)
+- [x] 13.11 — Hierarchical key derivation: power and exposure (nueva sección)
+- [x] 13.11 — Trust Segmentation Principle (tres reglas)
+
+---
+
+## Pendientes v0.3 (próxima versión)
 
 ### Style Guide v0.4 candidatos
 - [ ] Sección 30 — guía de decisión para path-pattern vs select-subset-from
 - [ ] Sección 31 — patrones de migración de dominio (old-identities/)
+- [ ] Sección 32 — HTTP integration pattern: /.well-known/trusteando-proof, proof delivery en response headers (opt-in para servidores Trusteando-aware, no cambio al core)
 
 ### Ecosystem
 - [ ] BNF grammar — validar con parser de referencia
