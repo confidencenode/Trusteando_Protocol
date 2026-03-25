@@ -36,7 +36,7 @@ Trusteando is not a response to this agenda. It is a protocol designed from firs
 | Data control | Each entity publishes in its own domain, under its own jurisdiction |
 | GDPR compliance | Privacy by design, minimal data, selective disclosure |
 | Interoperability | Universal folder schema — any system respecting it is interoperable by construction |
-| Sovereignty | Multiple roots in different European jurisdictions |
+| Sovereignty | Designed for multiple roots in different European jurisdictions — architecture supports this from day one |
 | Resilience | If one root fails, others sustain the network |
 | Democratic values | Transparency, auditability, decentralisation |
 
@@ -60,6 +60,7 @@ Trusteando is not a response to this agenda. It is a protocol designed from firs
 - It is not a replacement for eIDAS
 - It is not a blockchain
 - It is not a closed system controlled by any institution
+- It is not yet a live network — it is a complete specification ready for implementation
 
 It is an open protocol — like HTTP or SMTP — that any institution can implement, extend, and build upon. The specification is public. The algorithm is public. No entity can close it or revoke access to it.
 
@@ -76,7 +77,7 @@ The design makes this structurally difficult:
 - Open source — the code cannot be "closed"
 - The network can grow without permission — any entity can publish a trusteando/ folder
 
-The more an institution attempts to control it, the more evident its decentralisation becomes. The protocol is antifrágil with respect to institutional capture.
+The more an institution attempts to control it, the more evident its decentralisation becomes. The protocol is antifragile with respect to institutional capture.
 
 ---
 

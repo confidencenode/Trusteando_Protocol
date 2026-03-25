@@ -25,9 +25,14 @@ They learn statistical patterns from text, not truth. That is why they hallucina
 Trusteando converts the web into a graph of structured, verifiable facts. Instead of unstructured HTML:
 
 ```
-GET uma.es/trusteando/profesores/juan/rol     → "catedrático"
-GET uma.es/trusteando/profesores/juan/desde   → "2015-09-01"
-GET uma.es/trusteando/registry/profesores/    → list of verified professors
+GET uma.es/trusteando/professors/juan-ruiz/
+→ folder exists → juan-ruiz is a professor at UMA
+
+GET uma.es/trusteando/professors/juan-ruiz/since/
+→ 2015-09-01 → professor since that date, signed by UMA
+
+GET uma.es/trusteando/professors/
+→ complete list of current professors, signed membership list
 ```
 
 Each fact is:
@@ -36,7 +41,7 @@ Each fact is:
 - **Timestamped** — since/until conventions give full temporal history
 - **Traceable** — the authority chain is navigable
 
-This is an implicit API over the entire web. AI systems do not have to guess — they follow the structure.
+This is an implicit structured API over the entire web. AI systems do not have to guess — they follow the structure.
 
 ---
 
@@ -59,8 +64,8 @@ LLMs need training data with clear semantic structure. A web populated with Trus
 An AI agent with access to a Trusteando network can:
 
 1. **Generate a claim**: "Juan is a professor at UMA"
-2. **Verify it**: query `uma.es/trusteando/profesores/juan`
-3. **Return confidence**: "claim verified (source: UMA, 2026-03-19)"
+2. **Verify it**: navigate `uma.es/trusteando/professors/juan-ruiz/`
+3. **Return confidence**: "claim verified (source: UMA, since 2015-09-01)"
 4. **Or self-correct**: "I cannot verify that claim against authoritative sources"
 
 AI systems stop hallucinating verifiable facts. They learn to distinguish what they know from what they can check.
@@ -73,9 +78,9 @@ AI systems stop hallucinating verifiable facts. They learn to distinguish what t
 User: "Who is the longest-serving computer science professor at UMA?"
 
 AI agent:
-1. Translates: entity=uma.es, relation=profesores, filter=informatica, sort=since
-2. Queries: GET uma.es/trusteando/profesores/?dept=informatica&sort=since
-3. Gets: juan.perez@uma.es, since 2001-09-01 (signed by UMA)
+1. Resolves: uma.es/trusteando/departments/computer-science/professors/
+2. Fetches all children, reads since/ for each
+3. Sorts by since/ value — lexicographic order is chronological for ISO 8601
 4. Responds: "Juan Pérez, Full Professor since 2001 (source: UMA, cryptographically verified)"
 ```
 
@@ -122,12 +127,6 @@ Trusteando provides exactly this: a layer of verified, structured, auditable fac
 
 ---
 
-*confidencenode.org/protocolos/trusteando*
-*Author: confidencenode.org/members/confidencenode0*
-*Companion to: Trusteando Protocol Whitepaper v0.2*
-
----
-
 ## The Public Network is Already There
 
 A key insight about adoption: **80% of the value comes from data that is already public.** University directories, official registries, open government data, public platform APIs — all of this already exists and is already published. Trusteando does not need to convince anyone to share new data. It only needs entities to adopt the folder schema to structure what is already available.
@@ -140,10 +139,10 @@ Free-format HTML, difficult to parse, impossible to verify cryptographically.
 
 With Trusteando:
 ```
-uma.es/trusteando/profesores/juan-perez/
-├── [departamento informatica]/
+uma.es/trusteando/professors/juan-perez/
+├── [department computer-science]/
 ├── since/2015-09-01/
-└── [state trusteando]/
+└── [state trusteado]/
 ```
 Same university, same public data — but structured, signed, and machine-readable.
 
@@ -152,19 +151,20 @@ Same university, same public data — but structured, signed, and machine-readab
 If 100 European universities published their directories in Trusteando format tomorrow:
 
 ```python
-# An AI agent could query directly
+# Illustrative pseudocode — actual traversal follows the folder grammar
+# defined in the protocol specification
 universities = ["uma.es", "upm.es", "ub.edu", ...]
 facts = []
 for uni in universities:
-    professors = fetch(uni + "/trusteando/profesores/")
-    for prof in professors:
+    professors = fetch_children(uni + "/trusteando/professors/")
+    for prof_path in professors:
         facts.append({
-            "subject": prof,
+            "subject": prof_path,
             "relation": "professor_at",
             "object": uni,
-            "since": fetch(prof + "/since"),
-            "department": fetch(prof + "/departamento"),
-            "verified_by": uni  # cryptographically implicit
+            "since": fetch_since(prof_path),
+            "department": fetch_property(prof_path, "department"),
+            "verified_by": uni   # cryptographically implicit
         })
 ```
 
@@ -178,3 +178,9 @@ The public network provides the foundation. Private nodes (`private/`) are the e
 - **Private**: personal relations, sensitive credentials, access control → the remaining 20% that makes the system complete
 
 The practical implication: AI systems can start consuming and benefiting from Trusteando today, based purely on publicly available structured data, without waiting for private node adoption.
+
+---
+
+*confidencenode.org/protocolos/trusteando*
+*Author: confidencenode.org/members/confidencenode0*
+*Companion to: Trusteando Protocol Whitepaper v0.2*

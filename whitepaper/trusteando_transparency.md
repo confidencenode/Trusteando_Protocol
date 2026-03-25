@@ -23,10 +23,12 @@ Today, a citizen who wants to know which ministry has authority over a specific 
 
 ```
 GET ministerio.es/trusteando/competencias/agua/
-→ "Ministerio para la Transición Ecológica"
+→ [label:es "Ministerio para la Transición Ecológica"]
+   [label:en "Ministry for Ecological Transition"]
+   since/2020-01-01/
 
 GET transicion.gob.es/trusteando/delegaciones/madrid/
-→ verified delegation exists, since 2020-01-01
+→ verified delegation exists, since/2020-01-01/
 ```
 
 The same information — already public — but structured, verifiable, and queryable. A citizen, a journalist, or an AI agent can navigate institutional structures in minutes instead of days.
