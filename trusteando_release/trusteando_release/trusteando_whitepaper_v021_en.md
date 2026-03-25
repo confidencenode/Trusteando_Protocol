@@ -15,9 +15,6 @@ Trusteando is an open protocol for a decentralised, cryptographically verifiable
 
 
 ```
-# Pedagogical pseudocode — hash(a + b) is a shorthand.
-# Production implementations MUST use HMAC-SHA-256 with domain
-# separation strings. See §4.11.1 and Implementation Guide §7.
 class TrusteandoNode:
 def __init__(self, key): self.key = key
     @staticmethod
@@ -78,8 +75,6 @@ Trusteando does not compete with the web—it overlays it. Every entity that pub
 The web says: this document exists. Trusteando says: this relation exists, and it is verified by the authority over it. That distinction lets you accurately represent any organizational structure—universities with their faculties, companies with their departments, states with their administrations—and control at a granular level who can certify what about whom. The folder hierarchy mirrors the real hierarchy, and cryptography guarantees that only those with authority can issue credentials within their domain.
 
 Both layers use the same infrastructure. Only the rules change.
-
-This has a practical consequence that is easy to underestimate: a Trusteando node requires no special software to inspect. Any system administrator with SSH or FTP access to a web server can read, audit, and verify the folder structure directly. There is no proprietary format, no binary encoding, no special client required. The credential is a folder. The audit trail is a directory listing. This is not a design accident — it is what makes the protocol adoptable by public institutions whose IT departments are accustomed to managing web infrastructure, not cryptographic systems.
 
 
 ## 1.2 Adoption Levels
@@ -1178,7 +1173,7 @@ Each node generates at creation time an emergency key that it never shares with 
 
 ```
 clave_emergencia  ← generated locally, never shared with the superior
-hash_publico = HMAC-SHA256(key=clave_emergencia, msg=TRUSTEANDO_IDENTITY_V1 + entity_id)
+hash_publico = hash(entity_id, clave_emergencia)
 
 ```
 
@@ -1201,11 +1196,11 @@ When Juan wants to migrate to a new university, the process is:
 1. Juan reveals his clave_emergencia to universidad-b.es
 
 2. Universidad-b verifies against the hash_publico published by Juan:
-   HMAC-SHA256(key=clave_emergencia, msg=TRUSTEANDO_IDENTITY_V1 + entity_id_juan) == hash_publico
+   hash(entity_id_juan, clave_emergencia) == hash_publico
    → the adoption is legitimate and voluntary—Juan handed over the key
 
 3. Universidad-b informs the root that it knows Juan's clave_emergencia.
-   Root verifies: HMAC-SHA256(key=clave_emergencia, msg=TRUSTEANDO_IDENTITY_V1 + entity_id_juan) == hash_publico
+   Root verifies: hash(entity_id_juan, clave_emergencia) == hash_publico
    → valid equation: migration confirmed. There is no discretion.
 
 4. Universidad-b creates Juan's entry in its space:
@@ -1228,7 +1223,7 @@ When Juan wants to migrate to a new university, the process is:
 The old_identities table is an institutional record of the university, not of Juan. Juan cannot modify it or omit entries. It is signed by the university with the same authority as any other credential it issues.
 
 ```
-The role of the root in this process is purely algorithmic: it executes the public function HMAC-SHA256(key=clave_emergencia, msg=TRUSTEANDO_IDENTITY_V1 + entity_id) == hash_publico and returns true or false. It has no discretion to deny a migration whose equation holds, nor to approve one whose equation does not hold. Any node executing the same function on the same data would obtain an identical result. The root does not hold any privileged state—it only executes a public algorithm.
+The role of the root in this process is purely algorithmic: it executes the public function hash(entity_id, clave_emergencia) == hash_publico and returns true or false. It has no discretion to deny a migration whose equation holds, nor to approve one whose equation does not hold. Any node executing the same function on the same data would obtain an identical result. The root does not hold any privileged state—it only executes a public algorithm.
 ```
 
 Publishing the entire chain—not just the immediate previous link—allows any agent in the system to verify Juan's complete history with a single query, without having to jump from server to server following each link one by one. Each migration extends the chain by an element; the receiving university inherits it, extends it, and publishes it entirely signed.
@@ -1240,7 +1235,7 @@ If Juan's superior disappears—the university closes, loses the domain, or is r
 
 ```
 1. Juan presents his clave_emergencia to the root
-2. Root verifies: HMAC-SHA256(key=clave_emergencia, msg=TRUSTEANDO_IDENTITY_V1 + entity_id_juan) == registered hash_publico
+2. Root verifies: hash(entity_id_juan, clave_emergencia) == registered hash_publico
 3. Root welcomes Juan as an orphan node under its direct guardianship
 4. Juan operates normally while he finds a new superior
 5. When a new superior adopts him, he follows the standard migration process
@@ -1297,10 +1292,8 @@ Compromising one secret does not affect the others. Each secret generates its ow
 Since the root is a trivial public algorithm, any node with sufficient reputation can act as root. There is no fundamental distinction between a root and a high-reputation node: both execute the same public algorithm. This allows an ecosystem with thousands of potential roots. The entity randomly chooses a set of N roots (for example 5) and sends its request to each one. For each root i and each secret j a specific public key is derived:
 
 ```
-public_key[i][j] = HMAC-SHA256(key=secret_j, msg=TRUSTEANDO_IDENTITY_V1 + object.id + root[i].secret)
+public_key[i][j] = hash(object.id + secret_j + root[i].secret)
 ```
-
-*(Direct concatenation `hash(a + b + c)` is vulnerable to length extension. Production implementations MUST use HMAC with the `TRUSTEANDO_IDENTITY_V1` domain separator — see §4.11.1 and Implementation Guide §7.)*
 
 The result is a verification matrix of dimensions roots × secrets. Each cell is an independent proof that the entity knows secret j and has been recognized by root i. There is no mandatory root. The geographical, jurisdictional, and organizational diversity of the chosen roots determines resilience: an attacker controlling one jurisdiction or compromising one organization only affects the roots in that scope.
 
@@ -1448,65 +1441,7 @@ The absence of a path makes no assertion. The protocol operates under an open wo
 **Rule 5 — Core Determinism.**
 Given the same tree state, all conformant verifiers MUST reach identical conclusions. This requires: identical canonical path normalisation (§2.1.1), identical child ordering (§2.1.2), identical clock skew tolerance (§2.1.3), identical hard limits (§2.1.4), identical domain separation strings (§4.11.1), and declared fork resolution policy (§13.11). The test vectors in Appendix I are the reference for determinism.
 
----
 
-## 2.22 Temporal Scale as a Security Property
-
-Trusteando is designed for human-scale time. This is not a limitation — it is a deliberate property that determines what the protocol can guarantee and where it should not be applied.
-
-### The human scale
-
-Human institutions operate on timescales of hours, days, weeks, and years. A university updates its faculty list monthly. A court issues rulings over weeks. The BOE publishes official acts with vacatio legis of days to months. A professional license is renewed annually.
-
-At this scale the protocol's consistency model is strong:
-
-- A revocation that propagates within minutes is effectively instant relative to the domain's change rate.
-- A TTL of 24 hours on a signed membership list is more than sufficient when memberships change weekly.
-- A `since/` date set 30 days in the future (vacatio legis) gives every participant ample time to observe, verify, and prepare — the window of inconsistency is deliberate, not accidental.
-
-**Time is an ally at human scale.** The gap between publication and effect is not a vulnerability — it is a structural buffer that makes attacks harder. An adversary who publishes a fraudulent act must sustain the deception across a vacatio period long enough for the institutional response to activate.
-
-### The machine scale — where the protocol does not apply
-
-Financial trading systems, high-frequency orderbooks, real-time payment settlement, and any system where consistency is measured in milliseconds operate at a fundamentally different scale. At this scale:
-
-- Race conditions between publication and effect become exploitable windows.
-- The propagation latency of a revocation can exceed the attack window.
-- Ordering guarantees require distributed consensus — Raft, Paxos, or equivalent — that the protocol deliberately avoids.
-
-Trusteando does not attempt to provide millisecond consistency. Systems that require it should use purpose-built infrastructure: ACID databases, distributed transaction coordinators, serialisable snapshot isolation. These systems can coexist with Trusteando — the high-speed system executes and settles; the protocol records the signed declaration of the outcome. This is the notary/executor distinction of §13.8.
-
-### Marking high-frequency contexts
-
-When a node operates in a context where sub-second consistency matters, it SHOULD declare this explicitly:
-
-```
-system.es/trusteando/
-└── [temporal-scale high-frequency]/
-    └── [consistency-model extern/system.es/trusteando/consistency-policy]/
-```
-
-This signals to verifiers that standard TTL assumptions do not apply, that the node has a separate consistency policy, and that live checks are required rather than reliance on signed membership lists.
-
-The absence of `[temporal-scale]` implies human scale — the safe default.
-
-### Protocol scope by temporal domain
-
-| Domain | Scale | Protocol fit |
-|---|---|---|
-| Public administration, official gazettes | Human (days–months) | Native |
-| Academic credentials | Human (months–years) | Native |
-| Professional licensing | Human (months–years) | Native |
-| Healthcare records | Human (hours–days) | Native |
-| Legal proceedings, court orders | Human (days–months) | Native |
-| Real-time payment settlement | Machine (milliseconds) | Notary layer only |
-| High-frequency trading | Machine (microseconds) | Not applicable |
-| IoT sensor streams | Machine (milliseconds) | Not applicable |
-| Physical access control | Human–machine boundary | Live check required |
-| AI agent — verification | Machine (milliseconds) | Native — no restriction |
-| AI agent — binding commitments | Human-paced by design | `[requires-human-pace]` required (§7.17) |
-
-For domains in the "Native" row, the protocol provides strong guarantees without additional consistency infrastructure. For "Notary layer only", Trusteando records the outcome after the high-speed system has settled it — the same way a notary certifies a transaction after the fact rather than participating in its execution.
 
 ---
 
@@ -1516,9 +1451,6 @@ Trusteando is built on a premise as simple as it is profound: each folder in the
 
 
 ```
-# Pedagogical pseudocode — hash(a + b) is shorthand.
-# See §4.11.1 note and Implementation Guide §7 for the
-# production HMAC implementation with domain separation.
 class TrusteandoNode:
 def __init__(self, key):
     self.key = key
@@ -1560,7 +1492,7 @@ The pedagogical pseudocode uses `hash(result + element)` as shorthand. Productio
 
 ## 4.11.2 grant_key: the Parent Grants Keys to the Child
 
-When a parent node incorporates a child with a path segment, it grants it a derived key: child_key = HMAC-SHA256(key=parent_key, msg=TRUSTEANDO_GRANT_V1 + child_path_segment). The parent delivers child_key to the child over a secure channel. From that moment, the child knows its key, the parent can recompute it when necessary, and no one else knows it. The child never learns the parent's key—the direction of trust is strictly downward.
+When a parent node incorporates a child with a path segment, it grants it a derived key: child_key = hash(parent_key + child_path_segment). The parent delivers child_key to the child over a secure channel. From that moment, the child knows its key, the parent can recompute it when necessary, and no one else knows it. The child never learns the parent's key—the direction of trust is strictly downward.
 
 
 ## 4.11.3 respond_to_challenge: the Child Responds Without Revealing its Key
@@ -2339,299 +2271,11 @@ This is the same mechanism used for human coordination — the graph makes machi
 
 Trusteando gives machines what it gives humans: a way to prove who they are, what they are authorised to do, and what they have done — in a world where no one trusts anyone by default. The protocol does not distinguish between human agents and machine agents. It distinguishes between entities with keys and entities without them.
 
-One important qualification applies: the protocol treats machine and human agents identically at the cryptographic level, but certain classes of action carry an implicit assumption of human deliberation that a machine agent can violate while remaining cryptographically valid. Section 7.17 addresses this directly.
-
 ---
 
 # 8. Sustainability Model
 
 The protocol is open. The reference implementation is free software. What can be monetized is the service layer over the protocol—not the protocol itself.
-
-
-
----
-
-## 7.16 Administrative Deadlines and Compulsory Periods
-
-Public administration operates with two distinct temporal patterns that the protocol models natively: **vacatio legis** (the period between publication and effect) and **compulsory periods** (windows within which a party must act or face a legal consequence).
-
-### Pattern 1 — Vacatio legis
-
-An act is published but does not take effect immediately. The gap is deliberate — it gives affected parties time to prepare, appeal, or comply.
-
-```
-boe.es/trusteando/nombramientos/real-decreto-2026-0042/
-├── [published 2026-03-25]/          ← date of BOE publication
-├── since/2026-04-24/                ← date of effect (30 days later)
-├── [vacatio-days 30]/               ← period declared explicitly
-├── [firmante @ministerio.es]/
-└── [subject @juan-ruiz.es]/
-```
-
-A verifier reading this node on 2026-03-26 knows: the act is published, authentic, and signed — but not yet in effect. On 2026-04-24 at 00:00 UTC it enters into force without further action.
-
-**Security consequence:** an adversary who publishes a fraudulent act must do so far enough in advance that the vacatio period passes before detection. In institutional domains where acts are monitored and infrequent, this is a structural deterrent — not a cryptographic one.
-
-### Pattern 2 — Compulsory period (deadline for required action)
-
-An act takes effect immediately but gives the affected party a window to respond, comply, or appeal. Failure to act has a defined legal consequence.
-
-```
-juzgado.es/trusteando/procedimientos/desahucio-2026-0042/
-├── [firmante @juzgado-madrid-1.es]/
-├── [subject @inquilino-juan.es]/
-├── steps/
-│   ├── 01-notificacion/
-│   │   ├── [state completed]/since/2026-03-01/
-│   │   └── [deadline 2026-03-31]/
-│   │       └── [if-missed state-default-judgment]/
-│   ├── 02-contestacion/
-│   │   └── [state pending]/
-│   ├── 03-vista/
-│   │   └── [state pending]/
-│   └── 04-lanzamiento/
-│       ├── [state pending]/
-│       ├── [not-before 2026-05-01]/
-│       └── [vacatio-days 30]/
-└── private/
-    └── [expediente extern/@juzgado.es/expedientes/2026-0042]/
-```
-
-Three temporal primitives work together:
-
-**`[deadline date]`** — the window closes on this date. If the required step has not completed by then, the `[if-missed]` consequence becomes a verifiable fact.
-
-**`[not-before date]`** — step 04 cannot execute before this date regardless of how quickly prior steps complete. This is the minimum legal protection for the tenant — structurally embedded in the graph, not dependent on anyone's discretion.
-
-**`[vacatio-days N]`** on step 04 — an additional buffer beyond `[not-before]`. Two independent temporal barriers that must both be cleared before eviction can proceed.
-
-### Inaction as a verifiable fact
-
-The most important property of this model: **the absence of a completed step before its deadline is a verifiable fact**, not a judgment requiring testimony.
-
-A verifier checking whether `02-contestacion` was completed before `2026-03-31` navigates to the path, checks for `[state completed]/since/` with a date on or before the deadline, and finds either the fact or its absence. The non-occurrence is structurally visible — no declaration required.
-
-This inverts the traditional evidentiary burden for inaction: instead of "prove that something did not happen", the graph makes non-occurrence directly observable.
-
-### The `[deadline]` property — distinction from `until/`
-
-| Primitive | Meaning | Consequence of passing |
-|---|---|---|
-| `until/date` | The fact was valid until this date | Fact is no longer valid |
-| `[deadline date]` | Action was required by this date | `[if-missed]` consequence activates |
-| `since/date` (future) | Vacatio — effect not yet active | No effect until date arrives |
-| `[not-before date]` | Earliest possible execution | Step cannot proceed before this date |
-
-`[deadline]` is declared by the authority controlling the step, not by the party who must act. The affected party cannot modify or remove it.
-
-### Why this works — temporal scale
-
-These patterns function because legal proceedings operate at human scale (§2.22). A 30-day vacatio, a 30-day contestation window, a minimum execution date — all are long enough that replicas synchronise before any deadline expires, caches refresh multiple times within each period, and human oversight can detect anomalies. The temporal structure of the protocol mirrors the temporal structure of the law.
-
----
-
-## 7.17 AI Agents and Human-Paced Actions
-
-Section 7.15 establishes that the protocol treats machine agents and human agents identically: both have keys, both sign facts, both are auditable. This is correct and intentional.
-
-It requires one important qualification.
-
-### The implicit assumption in human security systems
-
-Security mechanisms designed for humans carry an assumption that is rarely stated explicitly: **the actor is human, and therefore rate-limited by biology and cognition**. A person cannot read and sign ten thousand contracts in a minute. A person cannot subscribe to a thousand services before breakfast. The friction built into institutional processes — confirmation emails, cooling-off periods, mandatory review windows, wet signatures — is not bureaucratic inefficiency. It is a deliberate rate-limiting mechanism whose security value depends on the actor being human.
-
-An AI agent with a valid key can violate this assumption completely. It can execute `respond_to_challenge` thousands of times per second. It can subscribe to every service that accepts automated signatures, delegate authority across hundreds of nodes, and sign thousands of binding commitments — all cryptographically valid, all permanently recorded in the append-only graph, all before a human supervisor has had time to notice.
-
-Each individual action is valid. The aggregate is an attack.
-
-This is not a flaw in the cryptography. It is a flaw in the threat model: the security system was designed assuming the actor cannot move faster than a human. An AI agent breaks that assumption while remaining within the cryptographic rules.
-
-### Human-paced actions — a semantic category
-
-The protocol introduces a semantic distinction between two categories of action:
-
-**Machine-executable actions** — actions where speed is neutral or beneficial. Verifying a credential, reading the graph, publishing an informational fact, responding to a challenge. These can and should be executed at machine speed.
-
-**Human-paced actions** — actions that require genuine human deliberation and where machine-speed execution is itself evidence that the required consent or consideration did not occur. Subscribing to a service, signing a contract, delegating authority to a new agent, making a binding commitment.
-
-The distinction is not about the technical mechanism — both use the same `respond_to_challenge` / `verify_child_authorship` pair. The distinction is about the semantic weight of the action and the implicit assumption of human deliberation that makes it meaningful.
-
-### The `[requires-human-pace]` declaration
-
-A node that publishes an operation requiring human deliberation can declare this explicitly:
-
-```
-service.es/trusteando/procedures/subscription/
-├── fields {
-│   date     is-type date
-│   email    is-type email
-│   plan     is select-one-from { basic, professional, enterprise }
-│   }
-├── [requires-human-pace]/
-└── [min-elapsed-seconds 300]/        ← minimum 5 minutes between
-                                         challenge issue and response
-```
-
-`[requires-human-pace]` signals to any verifier that this operation is semantically valid only if a human deliberated it. It does not enforce this technically — the protocol cannot read minds. What it does:
-
-1. **Declares the intent.** The publisher asserts that machine-speed execution of this operation violates the intended semantics, regardless of cryptographic validity.
-
-2. **Provides a rate signal.** `[min-elapsed-seconds N]` gives verifiers a concrete threshold: a challenge response arriving faster than N seconds after issue should be treated as suspect.
-
-3. **Creates an audit trail for disputes.** If a subscription is later disputed as having been executed by an agent without human authorisation, the `[requires-human-pace]` declaration is the semantic basis for the dispute. The burden shifts: the party claiming the action was human-authorised must demonstrate it.
-
-4. **Enables rate-limiting infrastructure.** A verifier implementing this can check the timestamp delta between challenge issue and proof submission and apply policy accordingly.
-
-### What the protocol does not guarantee
-
-`[requires-human-pace]` is a declaration, not an enforcement mechanism. The protocol cannot distinguish a human taking five minutes to read a contract from an agent sleeping for five minutes before submitting a response.
-
-Stronger enforcement requires additional layers outside the protocol:
-
-- **Biometric confirmation** at signing time (outside the protocol scope)
-- **Legal accountability** of the key holder for actions taken with their key
-- **Institutional audit** of agent behaviour patterns over time
-
-The protocol's contribution is making the semantic boundary explicit and creating the audit trail that allows those external enforcement mechanisms to operate. A subscription signed faster than `[min-elapsed-seconds]` is not automatically invalid — but it is flagged, and the flag is permanently in the graph.
-
-### The deeper principle
-
-The append-only guarantee that makes the protocol trustworthy is also what makes this threat serious: an AI agent that signs thousands of commitments cannot have those commitments erased. They can be revoked, one by one, but the record of their having been made is permanent.
-
-This makes the human-pace distinction a genuine security boundary, not a convenience feature. The institutions that most need this protocol — public administrations, courts, professional bodies — are also the institutions most vulnerable to automated abuse, because their processes were designed assuming human actors at human speed.
-
-Declaring `[requires-human-pace]` is how an institution signals that it has thought about this threat and chosen to make the semantic boundary explicit in the graph, where it is auditable and permanent.
-
-### AI agent mandate — explicit authorisation for machine-speed operation
-
-The `[requires-human-pace]` declaration does not prohibit AI agents from performing human-paced actions. It requires that machine-speed execution be explicitly authorised by a human principal — the same way that legal representation requires an explicit grant of authority from the represented party.
-
-Public administration already has this concept: a person can authorise a representative to act on their behalf for specific procedures. The representative's actions are valid because the principal signed the authorisation. The same structure applies to AI agents.
-
-An AI agent mandate is a signed declaration by a human principal that explicitly authorises a specific agent to perform specific human-paced actions at machine speed:
-
-```
-juan-ruiz.es/trusteando/mandates/
-└── [id:mandate-2026-001]/
-    ├── since/2026-03-25/
-    ├── [agent @agente-fiscal.es]/         ← the authorised AI agent
-    ├── [principal @juan-ruiz.es]/         ← the human who grants authority
-    ├── [scope tax-filings]/               ← specific operations authorised
-    ├── [allows-machine-pace true]/        ← explicit machine-speed permission
-    ├── until/2026-12-31/                  ← time-bounded
-    ├── [firmante @juan-ruiz.es]/          ← signed by the human principal
-    └── [firmante @agente-fiscal.es]/      ← countersigned by the agent
-```
-
-The institution receiving actions from the agent checks for a valid mandate before processing:
-
-```
-aeat.es/trusteando/procedures/tax-filing/
-├── fields { ... }
-├── [requires-human-pace]/
-└── [accepts-ai-mandate]/                  ← declares it will honour valid mandates
-```
-
-The verification flow:
-
-```
-1. Agent submits tax filing at machine speed
-2. Institution checks: is [requires-human-pace] declared? → yes
-3. Institution checks: is there a valid [ai-agent-mandate] from the principal? → yes
-4. Institution verifies mandate: signed by principal, covers tax-filings,
-   not expired, [allows-machine-pace true] declared
-5. Institution processes the filing as if the principal had submitted it
-6. The mandate and the filing are both permanently in the graph
-```
-
-Without a valid mandate, the institution may reject machine-speed submissions for human-paced operations, or flag them for human review before processing.
-
-### What the mandate establishes
-
-The mandate creates four things that did not exist before:
-
-**Explicit consent.** The principal has consciously decided to authorise an AI agent for a specific scope. This is not implicit — it is a signed, timestamped, permanent declaration.
-
-**Traceable responsibility.** If the agent acts incorrectly, the mandate chain traces back to the human who authorised it. The audit trail is complete: the agent signed the action, the principal signed the mandate, and both are permanently in the graph.
-
-**Institutional clarity.** The institution does not need to guess whether it is dealing with a human or a machine. The graph makes it explicit. Institutions can set their own policy — some may require mandates for all machine-speed operations; others may only require them for high-stakes procedures.
-
-**A recognised legal pattern.** The mandate structure mirrors existing legal representation frameworks — the civil law concept of mandato, the common law power of attorney. This makes it recognisable and legally interpretable without requiring new legislation. The protocol provides the cryptographic infrastructure; the existing legal framework provides the enforceability.
-
-### The checkbox the institution needs
-
-What this means for an institution designing its procedures: they need one additional field — the equivalent of the "I am authorised to act on behalf of" checkbox that already exists in paper forms, now extended to declare whether the acting party is an AI agent and whether there is a valid mandate covering this operation.
-
-In Trusteando this is not a checkbox — it is a verifiable fact in the graph. The institution does not ask "are you human?" and trust the answer. It verifies the mandate chain cryptographically. A valid mandate is as strong as any other credential in the protocol. An absent mandate for a `[requires-human-pace]` operation is a verifiable gap.
-
-### Electronic representation without a notary — the FNMT precedent
-
-In Spain, the FNMT certificate and the Cl@ve system already allow a person to grant electronic representation to a third party before public administrations — the AEAT, Social Security, and others — without requiring a notary. The apoderamiento electrónico is legally equivalent to a notarised power of attorney for administrative procedures.
-
-This is the direct legal precedent for the AI agent mandate. The mechanism already exists in Spanish administrative law. What is needed is not new legislation but an extension of the existing framework: the represented party is a human with a DNIe or FNMT certificate; the representative is declared to be an AI agent; the scope and duration are specified. The cryptographic infrastructure of Trusteando provides the same guarantees as the FNMT system — and integrates with it directly via the t9 identity mechanism of §2.17.
-
-This means that a citizen who already has a DNIe or FNMT certificate can grant an AI agent mandate using existing infrastructure, with no new registration process, no new authority, and no new legal framework required.
-
-### Agent-specific procedures — a parallel pathway
-
-An institution that accepts AI agent mandates should not simply run agents through the same procedures as humans with relaxed friction. It should design agent-specific procedures that reflect what machines can do, what they cannot do, and what additional controls are appropriate.
-
-A public administration might publish two parallel paths for the same operation:
-
-```
-aeat.es/trusteando/procedures/
-├── tax-filing/                          ← human pathway
-│   ├── fields { ... }
-│   ├── [requires-human-pace]/
-│   └── [accepts-ai-mandate]/            ← will check for mandate
-│
-└── tax-filing-agent/                    ← agent pathway
-    ├── fields {
-    │   date          is-type date
-    │   mandate-ref   is-type url         ← required: reference to valid mandate
-    │   agent-id      is-type url         ← required: agent node URL
-    │   model-version is-type string      ← declared AI model and version
-    │   action-hash   is-type sha256      ← hash of the action taken
-    │   }
-    ├── [agent-pathway true]/
-    ├── [max-submissions-per-hour 10]/    ← explicit rate limit
-    ├── [requires-mandate-verification]/  ← mandate must be verified before processing
-    └── [audit-level enhanced]/          ← granular logging of all agent actions
-```
-
-The agent pathway differs from the human pathway in several ways:
-
-**Additional required fields.** The agent must declare its mandate reference, its own identity, and its model version. These are not friction — they are the traceability that makes machine-speed operation safe. A human does not declare their cognitive model; an AI agent should.
-
-**Explicit rate limits.** Where the human pathway relies on human-speed as an implicit rate limit, the agent pathway declares the limit explicitly: `[max-submissions-per-hour N]`. The institution sets the rate appropriate to the operation.
-
-**Enhanced audit.** Every action taken by an agent through this pathway is logged with more granularity than a human action. The audit trail is richer, not weaker.
-
-**Mandate verification as a precondition.** The institution verifies the mandate before processing any action. The verification result is recorded in the graph. If the mandate expires or is revoked, subsequent actions are automatically rejected.
-
-**Independent suspension.** The institution can suspend the agent without suspending the principal:
-
-```
-aeat.es/trusteando/agent-suspensions/
-└── [agent @agente-fiscal.es]/
-    ├── [reason "anomalous-submission-pattern"]/
-    ├── since/2026-03-25T14:30:00Z/
-    └── [principal-unaffected true]/     ← human can still file manually
-```
-
-The principal retains their rights. The agent is suspended pending review. The two identities — human principal and AI agent — are independent nodes in the graph, and can be treated independently.
-
-### What this means for protocol design
-
-The existence of agent-specific procedures means that `[accepts-ai-mandate]` is not merely a permission flag — it is a pointer to a parallel procedure tree designed with different assumptions. Institutions that implement this thoughtfully gain:
-
-- Full auditability of all machine actions
-- Explicit rate control without relying on human-speed friction
-- Legal traceability back to the human principal via the mandate chain
-- The ability to respond to anomalies at the agent level without affecting the principal
-- Interoperability with the existing FNMT/Cl@ve electronic representation framework
-
-Institutions that do not implement it — that simply accept AI agent actions through human pathways — inherit all the vulnerabilities that §7.17 describes, because they are running machine-speed actors through systems designed for human-speed friction.
 
 
 ## 8.1 Formal recognition as an agent
@@ -2988,7 +2632,7 @@ The formal name system specification will have three components: local declarati
 
 ## 12.11 Active Authentication with Key Rotation
 
-The protocol defines the emergency key for migrations but does not specify an interactive active authentication mechanism. A natural extension is atomic rotation: the wallet generates a new key and publishes it on the web before revealing the old one to the verifier. The flow is: (1) wallet generates clave_2 and publishes hash_publico_2, (2) wallet waits for confirmation that hash_publico_2 is active, (3) wallet reveals clave_1 to the verifier, (4) verifier checks HMAC-SHA256(key=clave_1, msg=TRUSTEANDO_IDENTITY_V1 + entity_id) == hash_publico_1. Each authentication consumes the revealed key, turning the system into a one-time password mechanism cryptographically anchored in the node's identity. The formal specification of this mechanism will be addressed in future versions.
+The protocol defines the emergency key for migrations but does not specify an interactive active authentication mechanism. A natural extension is atomic rotation: the wallet generates a new key and publishes it on the web before revealing the old one to the verifier. The flow is: (1) wallet generates clave_2 and publishes hash_publico_2, (2) wallet waits for confirmation that hash_publico_2 is active, (3) wallet reveals clave_1 to the verifier, (4) verifier checks hash(entity_id, clave_1) == hash_publico_1. Each authentication consumes the revealed key, turning the system into a one-time password mechanism cryptographically anchored in the node's identity. The formal specification of this mechanism will be addressed in future versions.
 
 
 ## 12.12 Metadata Leakage in Path Structure
@@ -3123,8 +2767,6 @@ The protocol does not mandate one mode. It provides both, and the context determ
 This trade-off is particularly visible in academic credentials. A university that revokes a degree for academic misconduct may have already issued signed caches that list the degree as valid. Those caches remain valid until their TTL expires. For employment verification, a live check is appropriate. For a library access card, a cached check is sufficient. The same credential, the same revocation — different verification modes for different contexts. See also section 12.13 (Latency in Critical Security Revocation).
 
 To be explicit: signed caches are a performance optimisation, not a security mechanism. For security-critical applications, real-time revocation requires a live check against the issuer’s current state. The protocol does not solve the revocation latency problem — it makes the trade-off visible and the window measurable.
-
-The practical severity of this trade-off depends entirely on temporal scale (§2.22). For domains operating at human scale — where credentials change weekly or monthly and TTLs are measured in hours — the inconsistency window is negligible. For high-frequency domains where changes can occur at any moment and consequences are immediate, live checks are required. The `[temporal-scale high-frequency]` declaration signals this requirement explicitly to any verifier.
 
 ## 13.7 DNS Dependency and Authority Capture
 
@@ -3534,10 +3176,10 @@ Contains everything the node declares about itself:
 ```
 trusteando/identity/
 public_key          ← node's public key (base64, P-256 curve)
-hash_migracion      ← HMAC-SHA256(key=clave_emergencia_1, msg=TRUSTEANDO_IDENTITY_V1 + entity_id)
+hash_migracion      ← hash(entity_id, clave_emergencia_1)
 used for voluntary migration to a new superior
 renewed after each completed migration
-hash_disputa        ← HMAC-SHA256(key=clave_emergencia_2, msg=TRUSTEANDO_IDENTITY_V1 + entity_id)
+hash_disputa        ← hash(entity_id, clave_emergencia_2)
 used for dispute resolution
 never revealed during normal migrations
 entity_type         ← universidad | empresa | persona | servidor | ...
@@ -4848,48 +4490,14 @@ This appendix applies the protocol itself to establish the author's identity, th
 
 The author's identity uses the autonomous mode defined in section 4.10. The canonical identifier h1 directly incorporates the protocol grammar, making it semantically verifiable by anyone who understands the specification:
 
+
 ```
 h1 = hash("ConfidenceNode0/[author-of Trusteando Protocol]")
 h2 = hash(h1 + secret_v02)         ← public hash of this version
 h3 = hash(h1 + secret_disputes)    ← clave de disputas, independiente
 ```
 
-**Note on implementation status:** The hash constructions above are design specifications for a mechanism that has not yet been activated. The author has not yet generated or published these hashes.
-
-### Hardware entropy anchor
-
-For critical identity security, the author may use a hardware-generated random value as the root secret rather than a derivation from a predictable string. A TRNG (True Random Number Generator) embedded in a hardware security device — such as an FNMT HSM, a DNIe chip, or a TPM — generates entropy that is not reproducible from any known input. This produces an identity anchor with three properties that a text-derived hash cannot provide:
-
-- **Non-computability by third parties.** `hash("ConfidenceNode0/...")` is computable by anyone who knows the string. A hardware-generated secret exists only in the device that generated it — no one else can reproduce it.
-- **Physical custody chain.** A secret anchored in an FNMT device or DNIe has a legally verifiable chain of custody — the device was issued to a specific person through a regulated process. This elevates the identity from "whoever knows this phrase" to "whoever holds this specific device".
-- **Integration with existing t9 infrastructure.** The FNMT integration described in §2.17 applies directly: the author's hardware device constitutes t9-level identity without any additional action by T10. The same mechanism used for any citizen with a DNIe applies to the author.
-
-When hardware entropy is used, h1 is not publicly computable — it is the output of the hardware device and known only to the author. The mechanism remains identical: h1 anchors h2 and h3, and the version chain in F.2 operates the same way. The difference is in the security of the root: hardware entropy is resistant to brute force, dictionary attacks, and social engineering in a way that text-derived secrets are not.
-
-The decision between a text-derived h1 (publicly verifiable semantic anchor) and a hardware-generated h1 (non-computable, physically bound) involves a genuine trade-off:
-
-| | Text-derived h1 | Hardware-generated h1 |
-|---|---|---|
-| Verifiability | Anyone can compute and verify | Requires the author to publish the hash |
-| Security | Depends on secrecy of the phrase | Depends on physical custody of the device |
-| Recoverability | Memorable, reproducible | Lost if device is destroyed without backup |
-| Institutional strength | Semantic, human-readable | Cryptographic, legally anchored |
-
-The protocol supports both. The choice is the author's.
-
-### The physical custody problem
-
-Hardware entropy solves the cryptographic attack surface but introduces a physical one. If the identity anchor requires a specific device, that device becomes a target — not for cryptographic attack but for physical seizure or destruction. This is the "wrench attack": the adversary bypasses the cryptography by attacking the person who holds the key.
-
-For an identity that carries institutional weight — the founding author of a public protocol — physical coercion is a realistic threat vector, not a theoretical one. A solution that depends on a single physical device held by a single person is not adequate for this threat model.
-
-The protocol provides mechanisms to address this — Shamir's Secret Sharing (§12.14), separation of identity anchor from signing capability, liveness signals, and multi-anchor identity. These mechanisms are documented in the protocol specification precisely so that any entity facing a similar threat can use them.
-
-**The specific custody arrangements for the author's identity are not documented here.** Publishing the exact configuration — who the custodians are, what the quorum threshold is, when liveness signals are expected — would give an adversary operational information that reduces the cost of an attack. The design is public; the implementation is private.
-
-This is not security through obscurity. The cryptographic mechanisms are fully specified and open to audit. What is kept private is the operational configuration — the same separation that exists between a bank's published security policy and its unpublished vault combination.
-
-When the mechanism is activated, the production implementation will use HMAC-SHA-256 with domain separation consistent with §4.11.1, regardless of whether h1 is text-derived or hardware-generated.
+h1 is permanent and public: anyone can compute it by applying SHA-256 to the literal string. h2 changes with each version and only the author can generate it because it requires secret_v02, which is never published. h3 is independent of h2—compromising one does not compromise the other.
 
 Secret management does not require any human to memorize them. The reference wallet (planned in v0.2) generates them, stores them in the device's secure enclave, and distributes encrypted copies to trusted collaborating wallets using the protocol itself. The author grants custody roles by publishing under their own URL—no one can self-proclaim a custodian:
 
@@ -5224,7 +4832,7 @@ A further application of the authority pattern is a node that verifies paths wit
 
 ```python
 # The node derives the path key on demand
-key_path = node.grant_key("event/2026-03-24/attendee/juan/")  # uses HMAC internally
+key_path = hash(node.secret + "event/2026-03-24/attendee/juan/")
 
 # The attendee presents (path, key_path) to a verifier
 # The verifier asks the node: does this path exist?
@@ -5272,7 +4880,7 @@ The result is the same regardless of the order in which parties contribute. A ve
 |---|---|---|
 | Parent node | University | Event node |
 | Child | Professor Juan | Attendee path |
-| Child key | `grant_key(uni.secret, path)` | `grant_key(node.secret, path)` |
+| Child key | `hash(uni.secret + path)` | `hash(node.secret + path)` |
 | Proof of authority | `verify_child_authorship` | Presentation of `key_path` |
 | Additional credential | Degree certificate | Signed declaration of participation |
 | Node storage | Registry entries | Nothing — key only |
