@@ -3614,9 +3614,36 @@ A `revoked/` node with fewer signatures than the declared quorum is **pending re
 
 **What this does not solve:** a collusion of M authorities can still revoke any credential. The quorum raises the cost of illegitimate revocation from compromising one account to compromising M independent institutions. For the highest-assurance contexts, quorum authorities should be selected from structurally independent domains — the same diversity principle as the Trust Segmentation Principle in §13.11.
 
-
-
 ---
+## 12.19 Contextual Identity Separation and Cross-Level Information Flow
+
+A single natural person may hold multiple Trusteando identities operating at different contextual levels — formal, pseudonymous, and ephemeral. From the protocol's perspective, these are independent nodes: each has its own root key, its own `hash_publico`, and its own credential graph. No cryptographic link between them is visible to any external party unless the holder explicitly publishes one.
+
+This independence is a design property, not a limitation. It reflects the observation that a person's formal identity, their community pseudonym, and their ephemeral event identity are not merely the same person with different privacy settings — they are genuinely distinct social actors, each with properties, histories, and reputations that belong to their respective context and may be inappropriate or harmful in another.
+
+**The cross-level information flow problem** arises when a holder wishes to derive a new contextual identity by inheriting properties from an existing one. The protocol permits this — a holder may copy credential content from one identity to another — but establishes the following constraints:
+
+**MUST rules:**
+
+- Cross-level property transfer MUST be an explicit act by the holder. No implementation MAY transfer properties between contextual identities automatically or by default.
+- Each transferred property MUST be individually authorised. Bulk transfer of all properties from one identity to another is prohibited as a default operation.
+- The receiving identity MUST treat transferred properties as freshly asserted — they carry no attestation provenance from the source identity. A credential issued to `juan#verified` that is copied to `juan#trusted` is not thereby verified in the trusted context; it requires independent attestation at that level.
+
+**SHOULD rules:**
+
+- Implementations SHOULD alert the holder when a property proposed for transfer carries a disclosure risk inconsistent with the target context. The nature of that risk assessment is implementation-defined.
+- Implementations SHOULD alert the holder when a property from a high-disclosure context (formal identity) is proposed for inclusion in a low-disclosure context (ephemeral identity), as this may irreversibly compromise the separation between those identities.
+
+**The irreversibility constraint:**
+
+Once a property has been published in a contextual identity, its association with that identity is permanent in the sense that any party who observed it at publication time retains that information. The protocol cannot undo publication. This asymmetry — easy to publish, impossible to unpublish — means that cross-level transfer decisions are one-way: a holder who transfers a property from their ephemeral identity to their formal identity cannot later remove that association from parties who have already verified it.
+
+Implementations SHOULD make this irreversibility visible to the holder before confirming any cross-level transfer.
+
+**What the protocol does not specify:**
+
+The criteria by which an implementation determines that a property is contextually inappropriate for a given level are not specified here. This is intentional — the appropriate heuristics depend on jurisdiction, use case, and the specific properties involved. The protocol establishes the constraint (explicit, individual, irreversible) without prescribing the policy engine that enforces it.
+
 
 # 13. Design Trade-offs and Intentional Constraints
 
