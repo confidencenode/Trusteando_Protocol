@@ -3180,6 +3180,10 @@ uma.es/trusteando/vocabulary/aliases/
 
 Tooling that indexes the graph can identify vocabulary divergence by comparing alias declarations across nodes in the same sector. When a majority of education nodes in a region have aliased `city` to `T10/vocabularies/education/is-located-in`, a node that uses `city` without an alias declaration is flagged as a divergence candidate — not as invalid, but as a candidate for alignment outreach. This is Mechanism 3 as an operational reality: the protocol provides the data; the tooling provides the signal.
 
+**A note on inbound references (`referenced_by/`).** A natural extension would be a `referenced_by/` folder listing which nodes point to this one via `extern/` — the graph equivalent of backlinks. This is not a protocol-layer feature, and deliberately so. A node cannot know who points to it without a centralised index, which would contradict the protocol's distributed model. Inbound reference counting and reputation-by-citation are exactly the computations that Trusteando-Inference engines (§13.10) perform over the graph — they are application-layer intelligence, not protocol-layer state.
+
+The distinction is the same as the one between HTML and a search engine: Trusteando is the web of pages and their links; Trusteando-Inference is the search engine that indexes those links to compute who is important. The search engine does not modify the pages — it reads them. A node that publishes `referenced_by/` based on its own scan of the graph is publishing a snapshot of its knowledge at a point in time, not an authoritative record. Treat it as a convenience cache, not as a structural property.
+
 
 ## 12.10 Name Discovery and Registry
 
@@ -3497,6 +3501,118 @@ The mechanism described here is the generic form of the author-specific custody 
 ## 12.15 Verification Load in Deep Chains
 
 Verifying a fact at the end of a long chain—root, university, faculty, department, professor—requires multiple HTTP requests and processing several HMACs and ECDSA signatures in sequence. This penalizes resource-constrained devices or slow connections. The solution direction is proof aggregation via zero-knowledge proofs (section 12.3): a single ZK proof demonstrating the validity of the entire chain without revealing intermediate steps reduces the verification load to a single operation, regardless of chain depth. A more immediate solution without ZK is for each node to publish a precomputed Merkle proof of its position in the chain, allowing local verification without additional queries.
+
+
+## 12.16 BLS Signature Aggregation for High-Cardinality Nodes
+
+A university with 50,000 students, a registry with millions of entries, or a public administration with nationwide coverage faces a verification scalability problem: each child node requires an individual HMAC operation and, for `t9` nodes, an individual ECDSA signature. A verifier who needs to check a batch of credentials — "are all of these students currently enrolled?" — must perform N independent verification operations.
+
+**BLS signature aggregation** (Boneh-Lynn-Shacham) is a pairing-based cryptographic scheme that allows N independent signatures over N independent messages to be aggregated into a single constant-size signature, verifiable in a single pairing operation. The aggregate signature is smaller than any individual signature and its verification cost does not grow with N.
+
+The integration point with the protocol is the `signed-members/` convention (§4.3): a node that publishes a batch credential over its children's current state could publish a BLS aggregate signature alongside the individual HMAC proofs. A verifier who trusts the aggregate can skip individual verification for the batch; a verifier who requires individual proofs can still perform them.
+
+```
+university.es/trusteando/students/
+└── signed-members/
+    ├── [valid-until 2026-07-01T00:00:00Z]/
+    ├── [count 48312]/
+    ├── [aggregate-sig-bls "a7f3c2..."]/     ← BLS aggregate over all current members
+    ├── [aggregate-format "BLS12-381"]/
+    └── [firmante @university.es]/
+```
+
+A verifier checking a single student can verify against the aggregate without fetching all 48,312 individual proofs. A verifier building a compliance report can verify the aggregate once and trust the batch count.
+
+This is a future direction, not a current requirement. BLS requires pairing-friendly curves (BLS12-381 is the standard) and introduces a trusted setup assumption that HMAC-SHA256 does not. The trade-off is correct for high-cardinality nodes where batch verification is the dominant use case; it is unnecessary overhead for small hierarchies. The formal specification of BLS integration will be addressed in a future version after reference implementations establish the HMAC baseline.
+
+## 12.17 Salted Identifiers for GDPR-Sensitive Contexts
+
+The default `entity_id` is derived deterministically from the canonical URL: any observer who knows a URL can compute its hash and correlate it with graph entries. For most use cases this is a feature — URLs are public identifiers. For sensitive personal data in GDPR-regulated contexts, it is a privacy risk: an observer can build a correlation table of known URLs and their hashes, then identify individuals by matching graph entries against the table.
+
+**Salted identifiers** address this by incorporating a random value into the `entity_id` derivation:
+
+```
+entity_id = HMAC-SHA256(
+    key   = parent_key,
+    msg   = TRUSTEANDO_IDENTITY_V1 + url + salt
+)
+```
+
+When `salt` is the zero value (the default), this reduces exactly to the current deterministic derivation — salted identifiers are a continuous extension of the existing mechanism, not a separate one. When `salt` is a random value, the `entity_id` is opaque to any observer who does not hold the salt, even with a complete table of known URLs.
+
+The salt functions as a **visibility key**: possessing it is what grants the ability to correlate a graph entry with its URL. It is distributed to authorised verifiers via `grantReveal()` — the same mechanism used for `private/` folder access.
+
+**When to use salted identifiers:**
+
+- Nodes representing natural persons in healthcare, financial, or legal contexts where correlation is a regulatory risk
+- Nodes where the URL itself reveals sensitive information (e.g. `hospital.es/trusteando/patients/dni-12312312A/`)
+- Any context where GDPR's pseudonymisation requirement applies
+
+**When not to use salted identifiers:**
+
+- Organisations, public entities, or any node where the URL is a public identifier by design
+- Nodes where discoverability is the intended property (vocabulary repositories, public registries)
+
+**MUST rules for salted identifier implementations:**
+
+- The salt MUST be generated with a CSPRNG (cryptographically secure pseudo-random number generator) of at least 128 bits entropy
+- The salt MUST be distributed only to parties with a legitimate access basis under GDPR Article 6
+- The node MUST declare `[identifier-type salted]` in its `identity/` folder so verifiers know to request the salt before attempting correlation
+- Losing the salt is equivalent to losing the identity anchor — salt custody follows the same rules as `clave_emergencia`
+
+This mechanism provides pseudonymisation in the GDPR sense: the data is not anonymous (the URL still exists and the salt can be revealed) but it is not directly identifiable without the salt. Combined with `private/` for content protection, salted identifiers provide defence in depth for personal data.
+
+## 12.18 M-of-N Revocation Quorum for Critical Infrastructure
+
+The current revocation model is unilateral: a parent node revokes a child by publishing `revoked/` under the child's path. This is correct for standard institutional hierarchies — a university revokes a student's credential, an employer revokes an employee's access. But for critical infrastructure — power grids, financial systems, national identity registries — unilateral revocation by a single administrator is a single point of failure in both directions: an attacker who compromises one account can revoke any credential, and a rogue administrator can do the same.
+
+**M-of-N revocation quorum** requires that a revocation be countersigned by at least M independent authorities before it takes effect. The protocol already has the primitives: `[firmante @entity]` for multiple signatures and `[quorum N]` for threshold requirements. What is missing is a formal convention for applying them to revocation specifically.
+
+**Declaration — the node declares its revocation policy:**
+
+```
+universidad.es/trusteando/registry/degrees/
+├── [revocation-policy "quorum"]/
+├── [revocation-quorum 2]/               ← M: minimum signatures required
+├── [revocation-authorities 3]/          ← N: total eligible authorities
+├── [revocation-authority-1 @rector.universidad.es]/
+├── [revocation-authority-2 @consejo-universidades.es]/
+└── [revocation-authority-3 @ministerio-educacion.es]/
+```
+
+**Revocation — requires M signatures to be valid:**
+
+```
+universidad.es/trusteando/registry/degrees/juan-ruiz/
+└── revoked/
+    ├── since/2026-06-01T00:00:00Z/
+    ├── [reason "academic-misconduct"]/
+    ├── [firmante @rector.universidad.es]/         ← signature 1
+    ├── [firmante @consejo-universidades.es]/       ← signature 2
+    └── [quorum-met true]/
+```
+
+A verifier checking whether this revocation is valid:
+
+```
+1. Fetch the degree node's revocation-policy declaration
+2. Check [revocation-policy "quorum"] is declared
+3. Count [firmante] entries in the revoked/ node
+4. Verify each signature against the declared revocation authorities
+5. Check count >= revocation-quorum (2)
+6. Revocation is valid only if quorum is met
+```
+
+A `revoked/` node with fewer signatures than the declared quorum is **pending revocation** — the credential remains valid until the threshold is reached. This is a transparent, auditable state: any verifier can see that a revocation attempt is in progress and how many signatures it has collected.
+
+**MUST rules:**
+
+- A node that declares `[revocation-policy "quorum"]` MUST also declare `[revocation-quorum M]` and at least M `[revocation-authority-N]` entries.
+- A verifier encountering a `revoked/` node under a quorum-policy credential MUST verify the quorum before treating the credential as revoked.
+- The `[revocation-quorum M]` value MUST satisfy M ≥ 2. A quorum of 1 is equivalent to unilateral revocation.
+- Quorum authorities MUST be `@` signing entities — derived folder nodes cannot serve as revocation authorities.
+
+**What this does not solve:** a collusion of M authorities can still revoke any credential. The quorum raises the cost of illegitimate revocation from compromising one account to compromising M independent institutions. For the highest-assurance contexts, quorum authorities should be selected from structurally independent domains — the same diversity principle as the Trust Segmentation Principle in §13.11.
 
 
 

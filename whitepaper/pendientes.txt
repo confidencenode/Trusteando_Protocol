@@ -83,3 +83,11 @@
 - [ ] Trusteando-Inference v0.1 spec (prometido en §13.10)
 - [ ] Reference wallet spec (prometido en roadmap v0.2)
 - [ ] Reference implementations en dos lenguajes (prometido en roadmap v0.3)
+
+### Cookbook (completado en esta sesión)
+- [x] Recipe 10 — Journalism and photographic provenance
+- [x] Recipe 11 — IoT supply chain with cold chain monitoring
+- [x] Recipe 12 — AI model training provenance
+- [x] Recipe 13 — Verifiable sale receipt (Trust-Pay connection)
+- [x] Recipe 14 — AI Context Map (context.json convention)
+- [x] Recipe 15 — Trust-Pay (payment address derivation from key hierarchy)

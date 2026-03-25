@@ -1,38 +1,44 @@
-feat(style-guide): v0.4 sections 30–32 — decision guides and HTTP integration
+feat(cookbook+whitepaper): recipes 14-15, §12.16-12.18, style guide §30-32
 
-## Style Guide changes
+## Cookbook additions
 
-### §30 — path-pattern vs select-subset-from: The Decision Guide
-- Decision flowchart: structural domain vs fixed enumeration
-- When to use path-pattern: valid domain follows folder hierarchy,
-  grows automatically with structure
-- When to use select-subset-from: finite list known at schema design time,
-  explicit additions required for new values
-- Common mistakes with both patterns
-- Summary rule: "whatever exists under this subtree" vs "exactly these options"
+### Recipe 14 — AI Context Map
+- context.json convention at trusteando/context.json
+- Signed intentionality declaration: certifies[], does_not_certify[], agent_entry_point
+- Graph canonical source (identity/ fields), JSON export as convenience
+- Agent flow: fetch context → check relevance → verify only if match
+- Comparison table: /.well-known/trusteando-proof vs context.json
+- Modelling notes: optimisation not requirement, path-pattern in certifies[]
 
-### §31 — Domain Migration Patterns: old-identities/
-- Three migration scenarios:
-  1. Personal domain change (both domains countersign — highest assurance)
-  2. Institutional migration (new parent manages the chain, additive)
-  3. Emergency migration (root gone, hash_publico proof, v9 assurance)
-- Rules: receiving node maintains chain, full history published, permanent entries
-- Verification sequence for credentials issued under old identities
-- [migration-type emergency] declaration for absent countersignatures
+### Recipe 15 — Trust-Pay
+- Payment address derivation from Trusteando key hierarchy
+- payment_key = HMAC(merchant_payment_root, TRUSTEANDO_GRANT_V1 + path)
+- Lightning + HD wallet (xpub) integration patterns
+- Customer verification flow: derive expected address, confirm match, pay
+- Receipt integration: links to Recipe 13 via extern/
+- Brick-and-mortar QR pattern: path not address in QR
 
-### §32 — HTTP Integration Pattern: /.well-known/trusteando-proof
-- Optional discovery endpoint (not a core protocol requirement)
-- JSON response schema: trusteando_root, entity_id, hash_publico, trust_level,
-  signed_by, proof_format, since, cache_ttl
-- Client usage sequence: discovery → verification (separate steps)
-- Trust Badge integration: entry point for browser extensions (§16.5)
-- Visual vocabulary: t9/v9/b9/absent — absence of signal is not negative signal
-- Server SHOULD and MUST NOT rules
-- Relationship to protocol: well-known is discovery, graph is authority
+## Whitepaper additions (§12.16–12.18)
+- §12.16 — BLS signature aggregation (signed-members/ aggregate-sig-bls)
+- §12.17 — Salted identifiers: salt=0 default = current behaviour, salt as
+  visibility key, GDPR pseudonymisation MUST rules
+- §12.18 — M-of-N revocation quorum: declaration pattern, pending revocation
+  state, MUST rules
 
-## Other files updated
-- whitepaper/pendientes.txt (§30–32 marked [x])
-- Style Guide version bumped to v0.4 in footer
+## Style Guide additions (§30–32)
+- §30 — path-pattern vs select-subset-from decision guide
+- §31 — Domain migration: three scenarios + verification sequence
+- §32 — /.well-known/trusteando-proof: JSON schema, Trust Badge entry point
+
+## Refinements from review
+- §12.17: salt=0 reproduces current behaviour exactly (continuous extension)
+- §12.9: HTML/Google analogy for referenced_by vs Trusteando-Inference
+
+## Files updated
+- whitepaper/trusteando_whitepaper_v021_en.md (5331 → 5993 lines, +662)
+- whitepaper/trusteando_cookbook.md (296 → 714 lines, +418, recipes 10–15)
+- whitepaper/trusteando_style_guide.md (1515 → 1789 lines, +274, §30–32)
+- whitepaper/pendientes.txt
 
 ## Pending
 - Trusteando-Inference v0.1 spec

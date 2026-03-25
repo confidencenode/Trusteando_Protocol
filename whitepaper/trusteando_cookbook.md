@@ -544,5 +544,171 @@ The return is a child node of the original receipt — permanently linked, signe
 
 ---
 
+## Recipe 14 — AI Context Map
+
+**Domain:** autonomous AI agents and machine-speed verification
+**Entities:** node operator, AI agent, verifier
+**Key question:** how does an AI agent know what a node is about before committing resources to full verification?
+
+A node with thousands of subfolders — a university, a public registry, a large company — is expensive for an AI agent to traverse completely. The AI Context Map is a signed `context.json` file at the root of the `trusteando/` folder that acts as an intentionality declaration: what this node certifies, for whom, and under what conditions.
+
+### The file
+
+```
+empresa.es/trusteando/context.json
+```
+
+```json
+{
+  "trusteando_root": "https://empresa.es/trusteando/",
+  "entity_type": "company",
+  "trust_level": "t9",
+  "primary_domain": "retail",
+  "certifies": [
+    "trusteando/registry/products/*",
+    "trusteando/receipts/*",
+    "trusteando/staff/*"
+  ],
+  "does_not_certify": [
+    "medical",
+    "legal",
+    "financial-instruments"
+  ],
+  "language": ["es", "en"],
+  "agent_entry_point": "https://empresa.es/trusteando/",
+  "proof_format": "TRUSTEANDO-GRAMMAR-V0.2",
+  "since": "2026-01-01T00:00:00Z",
+  "signed_by": "https://T10/trusteando/registry/empresa-es/",
+  "signature": "HMAC-SHA256:f3a9c1..."
+}
+```
+
+### The graph declaration (canonical source)
+
+`context.json` is a convenience export derived from the graph. The authoritative declaration lives in the graph itself:
+
+```
+empresa.es/trusteando/identity/
+├── [entity-type company]/
+├── [primary-domain retail]/
+├── [certifies "trusteando/registry/products/*"]/
+├── [certifies "trusteando/receipts/*"]/
+├── [certifies "trusteando/staff/*"]/
+├── [does-not-certify medical]/
+├── [does-not-certify legal]/
+└── [agent-entry-point "empresa.es/trusteando/"]/
+```
+
+The `context.json` file is generated from this graph structure and signed by the node. Any discrepancy between `context.json` and the graph means the graph wins.
+
+### How an AI agent uses it
+
+```
+1. Agent navigates to empresa.es
+2. Agent fetches empresa.es/trusteando/context.json
+3. Agent reads certifies[] — does this node certify what I need?
+   — If no match → skip, no verification needed
+   — If match → proceed to full verification
+4. Agent reads agent_entry_point → where to start graph traversal
+5. Agent reads proof_format → which grammar version to use
+6. Agent checks signature → is this context map genuine?
+7. Full verification only if step 3 matched
+```
+
+An agent looking for medical certifications reads `does_not_certify: ["medical"]` and stops immediately — no graph traversal, no HMAC operations, no HTTP requests beyond the one for `context.json`.
+
+### Relationship to `/.well-known/trusteando-proof`
+
+The two files are complementary, not redundant:
+
+| File | Purpose | Consumer |
+|---|---|---|
+| `/.well-known/trusteando-proof` | Identity and trust level discovery | Any HTTP client, browser, Trust Badge |
+| `trusteando/context.json` | Semantic scope declaration | AI agents, automated verifiers |
+
+A Trust Badge reads the well-known file. An AI agent reads both — the well-known file for trust level, the context map for relevance.
+
+**Modelling notes:**
+- `context.json` is not a new protocol primitive — it is a convention for exporting graph content in a format optimised for machine consumption. The graph remains the authority.
+- The `certifies[]` array uses path-patterns (§2.12, style guide §30) — the same vocabulary as scope declarations in mandates.
+- `does_not_certify[]` is an open exclusion list — it signals domains the operator explicitly declines, not an exhaustive enumeration of everything outside the node's scope.
+- A node that does not publish `context.json` is fully protocol-compliant. An agent that encounters an absent file falls back to graph traversal. The file is an optimisation, not a requirement.
+
+---
+
+## Recipe 15 — Trust-Pay
+
+**Domain:** e-commerce, peer-to-peer payments, invoice settlement
+**Entities:** merchant, customer, payment processor (optional)
+**Key question:** how does a customer know that the payment address they are sending money to mathematically belongs to the merchant's verified identity structure?
+
+Payment fraud often operates by intercepting a legitimate address and substituting a fraudulent one. Trust-Pay closes this attack vector by deriving payment addresses from the same key hierarchy as the merchant's Trusteando identity — a fraudulent address cannot produce a valid proof of derivation.
+
+### The structure
+
+```
+tienda-garcia.es/trusteando/payments/
+├── [lightning-node "02a3f9e2b1c4d7..."]/    ← merchant's Lightning node public key
+├── [on-chain-xpub "xpub6..."]/              ← HD wallet extended public key
+├── products/
+│   └── [id:zapatillas-nike-42]/
+│       ├── [price "EUR:105.00"]/
+│       ├── [lightning-invoice "lnbc..."]/   ← derived invoice for this product
+│       └── [firmante @tienda-garcia.es]/
+└── [firmante @tienda-garcia.es]/
+```
+
+### Key derivation for payment addresses
+
+The payment address for a specific product is derived from the merchant's root payment key using the same path structure as the Trusteando hierarchy:
+
+```
+payment_key(product) = HMAC-SHA256(
+    key = merchant_payment_root,
+    msg = TRUSTEANDO_GRANT_V1 + "payments/products/" + product_id
+)
+```
+
+This is the standard `grant_key` operation applied to the payment subtree. A verifier who knows the merchant's payment root can recompute the expected payment key for any product path and verify that the presented payment address matches — without knowing the root key.
+
+### Customer verification flow
+
+```
+1. Customer browses tienda-garcia.es/trusteando/payments/products/[id:zapatillas-nike-42]/
+2. Customer reads [lightning-invoice "lnbc..."]
+3. Customer verifies: does this invoice derive from the merchant's root payment key?
+   — Fetch merchant's [lightning-node] public key from payments/
+   — Verify invoice signature matches the derived key for this product path
+   — Verify payments/ node is signed by @tienda-garcia.es
+4. Customer confirms: this address mathematically belongs to this product
+   in this merchant's verified structure
+5. Customer pays — proof of payment is the signed transaction referencing this path
+```
+
+### Receipt integration
+
+After payment, the merchant publishes the transaction as a child of the product node:
+
+```
+tienda-garcia.es/trusteando/payments/products/[id:zapatillas-nike-42]/
+└── transactions/
+    └── [id:tx-2026-03-25-00847]/
+        ├── since/2026-03-25T11:42:00Z/
+        ├── [amount "EUR:105.00"]/
+        ├── [lightning-preimage "9f3c2a..."]/  ← payment proof
+        ├── [buyer @juan-ruiz.es]/             ← optional, if buyer has identity
+        └── [firmante @tienda-garcia.es]/
+```
+
+This links the payment to Recipe 13 (verifiable receipt) — the transaction node under `payments/` and the receipt node under `receipts/` reference each other via `extern/`, creating a complete, verifiable commercial record.
+
+**Modelling notes:**
+- Trust-Pay does not implement a payment protocol — it anchors payment addresses in the Trusteando key hierarchy so they can be verified against the merchant's published identity. The actual payment happens over Lightning, on-chain Bitcoin, SEPA, or any other payment rail.
+- The key insight: a fraudulent merchant cannot produce a payment address that derives correctly from `tienda-garcia.es/trusteando/payments/` without controlling the merchant's root payment key — the same key that signs their entire Trusteando structure. Substituting the payment address would require compromising the entire identity.
+- `[on-chain-xpub]` enables HD wallet derivation — a unique receiving address per transaction, with no address reuse, all mathematically traceable to the merchant's published xpub. This is standard Bitcoin HD wallet practice anchored to a verifiable identity.
+- For brick-and-mortar use: the QR code at the point of sale encodes the product path, not just the address. A customer with a Trust-Pay aware wallet fetches the path, derives the expected address, and confirms it matches before signing the payment.
+
+---
+
 *Trusteando Protocol — confidencenode.org/protocolos/trusteando*
 *Style Guide, Quickstart, and Whitepaper in the same directory.*
