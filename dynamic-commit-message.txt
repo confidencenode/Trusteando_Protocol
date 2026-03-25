@@ -1,0 +1,73 @@
+# Trusteando Protocol — Dynamic Commit Message
+# Este archivo se actualiza en cada sesión de trabajo.
+# Usar: git commit -F dynamic-commit-message.txt
+
+---
+
+## Commit actual — marzo 2026
+
+feat(whitepaper+cookbook+style-guide): v0.3 complete — 13 new specs, 15 recipes, style guide §30-32
+
+### Whitepaper — nuevas secciones formales (§12)
+- §12.2  — Credential scope mechanisms (two-layer: issuer declaration + per-credential restriction)
+- §12.3  — ZKP direction: 3 use cases, candidate primitives, integration point
+- §12.9  — Distributed vocabulary repositories + alias declarations (MUST rules)
+- §12.9  — referenced_by/ note: pertenece a Trusteando-Inference, no al protocolo
+- §12.10 — Name discovery: 3-component formal spec
+- §12.11 — Active authentication with key rotation: 6-step atomic flow
+- §12.14 — Social identity recovery via Shamir's Secret Sharing
+- §12.16 — BLS signature aggregation for high-cardinality nodes
+- §12.17 — Salted identifiers for GDPR (salt=0 = current behaviour, continuous extension)
+- §12.18 — M-of-N revocation quorum for critical infrastructure
+
+### Whitepaper — mejoras de claridad
+- §2.12  — path-pattern as scope declaration (formal example)
+- §2.14.2 — normative design rule: @ vs derived folder; persons SHOULD use @
+- §4.11.2 — derivation trade-off paragraph at point of grant_key introduction
+- §13.11 — Hierarchical key derivation: power and exposure + Trust Segmentation Principle
+- §16    — Ecosystem Directions (§16.1–16.5): P2P, on-chain roots, NFC/BT, AI provenance,
+            Trust Badges
+- §16.4  — "Trusteando is the data; Trusteando-Inference is the algorithm"
+
+### Cookbook — 15 recetas (añadidas 10-15)
+- Recipe 10 — Journalism and photographic provenance
+- Recipe 11 — IoT supply chain with cold chain monitoring
+- Recipe 12 — AI model training provenance (EU AI Act alignment)
+- Recipe 13 — Verifiable sale receipt
+- Recipe 14 — AI Context Map (context.json convention)
+- Recipe 15 — Trust-Pay (payment address derivation from key hierarchy)
+
+### Style Guide — secciones 30-32
+- §30 — path-pattern vs select-subset-from: decision guide + flowchart
+- §31 — Domain migration patterns: 3 scenarios (personal, institutional, emergency)
+- §32 — HTTP integration: /.well-known/trusteando-proof (JSON schema, Trust Badge entry point)
+
+### Archivos modificados
+- whitepaper/trusteando_whitepaper_v021_en.md  (5331 → 5993 líneas, +662)
+- whitepaper/trusteando_cookbook.md            (296 → 714 líneas, +418)
+- whitepaper/trusteando_style_guide.md         (1515 → 1789 líneas, +274)
+- whitepaper/pendientes.txt                    (todos los items v0.3 marcados [x])
+- README.md                                    (sección "Added in this cycle" actualizada)
+- dynamic-commit-message.txt                   (este archivo, añadido)
+
+### Pendientes siguientes
+- Trusteando-Inference v0.1 spec
+- Conformance test suite (§1.5, §1.6)
+- Reference implementations (2 lenguajes)
+- Reference wallet spec
+- ctx README (vault como capa 3)
+
+---
+
+## Historial de commits anteriores
+
+### 31118d6 — Ecosystem Directions + Recipes 10-13
+- §16 Ecosystem Directions (P2P, on-chain roots, NFC/BT, AI provenance, Trust Badges)
+- Recipe 10-13 (periodismo, IoT, IA, ticket de venta)
+
+### 6846d87 — v0.3 formal specs + clarity improvements
+- §12.2, §12.3, §12.9, §12.10, §12.11, §12.14 specs formales
+- §2.14.2, §4.11.2, §13.11 mejoras de claridad
+
+### 113e376 — v0.2.1 base
+- Estado inicial del repositorio
