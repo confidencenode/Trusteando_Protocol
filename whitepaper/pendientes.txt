@@ -73,9 +73,9 @@
 ## Pendientes v0.3 (próxima versión)
 
 ### Style Guide v0.4 candidatos
-- [ ] Sección 30 — guía de decisión para path-pattern vs select-subset-from
-- [ ] Sección 31 — patrones de migración de dominio (old-identities/)
-- [ ] Sección 32 — HTTP integration pattern: /.well-known/trusteando-proof, proof delivery en response headers (opt-in para servidores Trusteando-aware, no cambio al core)
+- [x] Sección 30 — guía de decisión para path-pattern vs select-subset-from
+- [x] Sección 31 — patrones de migración de dominio (old-identities/)
+- [x] Sección 32 — HTTP integration pattern: /.well-known/trusteando-proof, proof delivery en response headers (opt-in para servidores Trusteando-aware, no cambio al core)
 
 ### Ecosystem
 - [ ] BNF grammar — validar con parser de referencia

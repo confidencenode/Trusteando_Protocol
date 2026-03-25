@@ -1510,6 +1510,280 @@ A mandate that references an existing FNMT apoderamiento can declare the referen
 
 This links the Trusteando mandate to the legally registered electronic representation in the official FNMT registry. A verifier who requires the highest level of assurance can verify both the Trusteando cryptographic chain and the FNMT registry independently. Two independent layers of verification — the same model as the BOE publication anchor described in whitepaper §F.5.
 
+---
+
+## 30. path-pattern vs select-subset-from — The Decision Guide
+
+Both `path-pattern` and `select-subset-from` express a constrained set of valid values for a field. The choice between them is consequential: one is structural, the other is enumerative. Picking the wrong one produces schemas that are either too rigid or too open.
+
+### The core distinction
+
+| Type | Syntax | Use when |
+|---|---|---|
+| `path-pattern` | glob over the Trusteando path space | The valid domain is defined by **position in the hierarchy** |
+| `select-subset-from` | closed list of named options | The valid choices are **finite and enumerable at schema time** |
+
+### The decision flowchart
+
+```
+Can you list all valid values right now, and is that list stable?
+├── Yes → use select-subset-from { option-a, option-b, option-c }
+└── No → Does the valid domain follow the folder structure?
+         ├── Yes → use path-pattern (glob)
+         └── No → use string with documented conventions
+```
+
+### When to use `select-subset-from`
+
+The valid choices are known at schema design time, finite, and unlikely to change without a schema update. The canonical examples are enumerations of states, categories, or modes:
+
+```
+procedures/tax-filing/fields {
+    modality    is select-one-from { renta, sociedades, iva }
+    status      is select-one-from { pending, submitted, accepted, rejected }
+    currency    is select-subset-from { EUR, USD, GBP }
+}
+```
+
+Adding a new currency requires a schema update. That is the correct behaviour — a new currency is a deliberate extension, not something that should be accepted silently.
+
+### When to use `path-pattern`
+
+The valid domain is a region of the graph hierarchy, not a fixed list. The canonical examples are scope declarations and access control:
+
+```
+mandates/ai-agents/fields {
+    scope    is-type path-pattern    ← "all tax procedures" = trusteando/procedures/tax-*
+}
+
+registry/agents/fields {
+    delegated-scope    is-type path-pattern    ← "all university degrees" = trusteando/registry/degrees/*
+}
+```
+
+A path-pattern is correct here because the set of valid paths is determined by the graph structure, not by a list you can write down. New subfolders added under `procedures/tax-*/` are automatically in scope — no schema update required.
+
+### The structural vs enumerative test
+
+Ask: *if the hierarchy grows, should the field's valid domain grow with it automatically?*
+
+- **Yes** → `path-pattern`. The domain follows the structure.
+- **No** → `select-subset-from`. The domain is fixed by explicit choice.
+
+```
+# path-pattern — new procedures added under tax-* are automatically in scope
+[scope "trusteando/procedures/tax-*"]/      ← grows with the hierarchy
+
+# select-subset-from — new currencies require explicit addition
+modality is select-one-from { renta, sociedades, iva }   ← fixed list
+```
+
+### Common mistakes
+
+```
+# ❌ Wrong — using select-subset-from for a structural domain
+scope    is select-subset-from { tax-filing, tax-appeal, tax-query }
+# Problem: adding a new tax procedure requires a schema update
+# every mandate that references this schema becomes stale
+
+# ✅ Correct — path-pattern for structural domain
+scope    is-type path-pattern
+# [scope "trusteando/procedures/tax-*"] covers all current and future tax procedures
+
+# ❌ Wrong — using path-pattern for a fixed enumeration
+currency    is-type path-pattern
+# Problem: there is no folder hierarchy for currencies;
+# any string would match, defeating the schema's purpose
+
+# ✅ Correct — select-subset-from for fixed enumeration
+currency    is select-subset-from { EUR, USD, GBP }
+```
+
+### Summary rule
+
+> Use `path-pattern` when the answer to "what is valid?" is "whatever exists under this subtree."
+> Use `select-subset-from` when the answer is "exactly these options, nothing else."
+
+---
+
+## 31. Domain Migration Patterns — `old-identities/`
+
+When an entity moves from one domain to another, its history must survive the move. The `old-identities/` convention is the mechanism for this. This section covers the three migration scenarios and the modelling patterns for each.
+
+### Why migration matters
+
+An entity's identity is anchored to its URL in the default mode. If `professor-juan.es` becomes `juan-ruiz.es`, the credential chain breaks: any verifier who knows the old URL cannot automatically connect it to the new one. `old-identities/` makes that connection explicit, signed, and permanent.
+
+### The three migration scenarios
+
+**Scenario 1 — Personal domain change**
+
+The entity controls both the old and new domain during the migration window:
+
+```
+juan-ruiz.es/trusteando/
+├── identity/
+│   └── [official-name "Juan Ruiz García"]/
+└── old-identities/
+    └── [id:prev-001]/
+        ├── [url "professor-juan.es/trusteando/"]/
+        ├── [reason "personal domain consolidation"]/
+        ├── since/2026-01-01/
+        └── [firmante @professor-juan.es]/    ← old domain countersigns
+```
+
+The old domain's countersignature (`[firmante @professor-juan.es]`) is the proof that this is a voluntary migration — not a claim by a third party. A verifier who sees this chain knows that `juan-ruiz.es` and `professor-juan.es` are the same entity, with both parties confirming the association.
+
+**Scenario 2 — Institutional migration (parent-managed)**
+
+The entity moves between institutions. The new parent manages the `old-identities/` record, not the entity itself:
+
+```
+universidad-b.es/trusteando/professors/juan-ruiz/
+├── since/2026-09-01/
+└── old-identities/
+    ├── [id:prev-uma]/
+    │   ├── [url "uma.es/trusteando/professors/juan-ruiz/"]/
+    │   ├── [reason "institution transfer"]/
+    │   └── since/2026-09-01/
+    └── [firmante @universidad-b.es]/    ← new institution signs the chain
+```
+
+The new institution inherits and extends the chain. It does not modify the old institution's records — it publishes its own entry under its own `old-identities/`. The chain is additive.
+
+**Scenario 3 — Emergency migration (root gone)**
+
+The original domain is gone — the institution closed, the domain expired, or the root was compromised. The entity migrates using its emergency key (whitepaper §4.7):
+
+```
+juan-ruiz.es/trusteando/
+└── old-identities/
+    └── [id:prev-orphan]/
+        ├── [url "disappeared-university.es/trusteando/professors/juan-ruiz/"]/
+        ├── [reason "institution closure"]/
+        ├── [migration-type emergency]/
+        ├── since/2026-03-01/
+        └── [hash-publico "a3f9e2b1..."]/    ← emergency key proof, no countersignature possible
+```
+
+Without the old domain's countersignature, this migration carries less assurance than Scenario 1. A verifier SHOULD treat it as `v9` (technically valid, not fully attested) rather than `t9` until a reputable node attests the association.
+
+### Rules
+
+- `old-identities/` is maintained by the **receiving** node or its parent — not by the migrating entity alone.
+- Each entry MUST have a `since/` timestamp and a `[reason]`.
+- The chain is published in full at the new location — not just the immediate previous link. A verifier can see the complete migration history with a single query.
+- Entries in `old-identities/` are permanent. Migration cannot be undone by deleting an entry.
+- `[migration-type emergency]` SHOULD be declared when the old domain countersignature is absent.
+
+### Verification implications
+
+A verifier who encounters a credential issued under an old identity can follow the `old-identities/` chain to the current identity. The verification sequence:
+
+```
+1. Credential references old URL: disappeared-university.es/professors/juan-ruiz/
+2. Verifier queries T10 or known roots for old-identities/ records pointing to this URL
+3. Finds juan-ruiz.es/trusteando/old-identities/[id:prev-orphan]/
+4. Checks [hash-publico] matches the emergency key proof
+5. Checks since/ — migration predates credential issue date
+6. Credential is traceable to current identity — valid with v9 assurance
+```
+
+---
+
+## 32. HTTP Integration Pattern — `/.well-known/trusteando-proof`
+
+The protocol operates over standard HTTP — no server modifications required. This section defines an **optional** convention for servers that want to make their Trusteando structure discoverable by automated clients, browsers, and AI agents with a single well-known request.
+
+This is not a core protocol requirement. A node that does not implement `/.well-known/trusteando-proof` is fully compliant. This convention exists for servers that want to support automated discovery.
+
+### The well-known path
+
+```
+GET /.well-known/trusteando-proof
+```
+
+Returns a JSON document with the minimum information needed to locate and begin verifying the node's Trusteando structure:
+
+```json
+{
+  "trusteando_root": "https://empresa.es/trusteando/",
+  "entity_id": "empresa.es",
+  "hash_publico": "a3f9e2b1c4d7...",
+  "trust_level": "t9",
+  "signed_by": "https://T10/trusteando/registry/empresa-es/",
+  "proof_format": "TRUSTEANDO-V0.2",
+  "since": "2026-01-01T00:00:00Z",
+  "cache_ttl": 3600
+}
+```
+
+### Field definitions
+
+| Field | Required | Description |
+|---|---|---|
+| `trusteando_root` | Yes | Canonical URL of the entity's Trusteando root folder |
+| `entity_id` | Yes | The entity identifier (canonical domain) |
+| `hash_publico` | Yes | The node's emergency key commitment (whitepaper §4.7) |
+| `trust_level` | Yes | Current conformity state: `t9`, `v9`, or `b9` |
+| `signed_by` | No | URL of the parent or root that recognises this node |
+| `proof_format` | Yes | Grammar version — must match `TRUSTEANDO-GRAMMAR-V0.2` |
+| `since` | Yes | When this proof was generated |
+| `cache_ttl` | No | Seconds a client may cache this response (default: 3600) |
+
+### How a client uses this
+
+```
+1. Client visits empresa.es
+2. Client fetches empresa.es/.well-known/trusteando-proof
+3. Client reads trusteando_root → empresa.es/trusteando/
+4. Client fetches empresa.es/trusteando/ and verifies structure
+5. Client checks hash_publico matches the node's published commitment
+6. Client follows signed_by chain upward to verify authority
+7. Client has verified: this server is empresa.es, at trust level t9,
+   recognised by T10, since 2026-01-01
+```
+
+Steps 4–6 can be performed offline against a cached snapshot. Step 2 is the only live request required for discovery.
+
+### Trust Badge integration
+
+A browser extension implementing Trust Badges (whitepaper §16.5) uses `/.well-known/trusteando-proof` as its entry point:
+
+```
+1. Browser navigates to empresa.es
+2. Extension fetches /.well-known/trusteando-proof
+3. Extension reads trust_level and signed_by chain
+4. Extension renders badge:
+   t9 → full badge with authority chain tooltip
+   v9 → partial badge ("node exists, chain not fully verified")
+   b9 → warning badge
+   404 → no badge (not participating)
+```
+
+The badge never shows a false positive: if `/.well-known/trusteando-proof` is absent or returns an error, no badge is shown — not a negative badge, not an error indicator. Absence of signal is not a signal of absence.
+
+### Server implementation notes
+
+Servers implementing this endpoint SHOULD:
+
+- Serve the response with `Content-Type: application/json`
+- Set `Cache-Control: max-age=<cache_ttl>` matching the declared `cache_ttl`
+- Regenerate the proof whenever `trust_level` or `signed_by` changes
+- Return HTTP 404 (not 200 with empty body) if the server does not participate in Trusteando
+
+Servers MUST NOT:
+
+- Serve a `trust_level` that does not match the actual current state of the node
+- Omit `hash_publico` — it is the cryptographic anchor that makes the proof verifiable
+- Cache a stale proof beyond its declared `cache_ttl`
+
+### Relationship to the protocol
+
+`/.well-known/trusteando-proof` is a discovery shortcut, not an authority. The authoritative source of truth is always the graph itself at `trusteando_root`. A client that verifies only the well-known document without checking the graph has not performed a complete verification — it has performed discovery. Discovery and verification are separate steps.
+
+---
+
 *This is a living document. Conventions evolve with practice.*
-*confidencenode.org/protocolos/trusteando — Style Guide v0.3*
-*(Section 29 added in v0.3.1 — AI Agent Mandate pattern)*
+*confidencenode.org/protocolos/trusteando — Style Guide v0.4*
+*(Sections 30–32 added in v0.4 — path-pattern decision guide, domain migration, HTTP integration)*

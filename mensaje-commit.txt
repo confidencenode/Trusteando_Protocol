@@ -1,51 +1,42 @@
-feat(whitepaper+cookbook): v0.3 additions — formal specs, clarity improvements, ecosystem directions
+feat(style-guide): v0.4 sections 30–32 — decision guides and HTTP integration
 
-## Whitepaper changes
+## Style Guide changes
 
-### New formal specifications (§12)
-- §12.2 — Credential scope mechanisms: two-layer system (issuer scope declaration via
-  path-pattern + per-credential [only-valid-for]), verification flow with
-  SCOPE-VERIFIED / SCOPE-UNVERIFIED / SCOPE-INVALID states, scope delegation
-- §12.3 — ZKP direction: three use cases, candidate primitives, integration point
-- §12.9 — Distributed vocabulary repositories + alias declaration mechanism (MUST rules)
-- §12.10 — Name discovery: three-component formal spec, offline-capable verification
-- §12.11 — Active authentication with key rotation: 6-step atomic flow, MUST rules
-- §12.14 — Social identity recovery via Shamir's Secret Sharing: full spec + MUST rules
+### §30 — path-pattern vs select-subset-from: The Decision Guide
+- Decision flowchart: structural domain vs fixed enumeration
+- When to use path-pattern: valid domain follows folder hierarchy,
+  grows automatically with structure
+- When to use select-subset-from: finite list known at schema design time,
+  explicit additions required for new values
+- Common mistakes with both patterns
+- Summary rule: "whatever exists under this subtree" vs "exactly these options"
 
-### Clarity improvements (addressing reviewer feedback)
-- §2.12 — path-pattern as scope declaration with formal example
-- §2.14.2 — Normative design rule: @ vs derived folder; persons SHOULD use @
-- §4.11.2 — Derivation trade-off paragraph at point of grant_key introduction
-- §12.7 — ZKP ceiling reference updated → §12.3
-- §13.11 — New section: Hierarchical key derivation — power and exposure +
-  Trust Segmentation Principle (three actionable rules)
+### §31 — Domain Migration Patterns: old-identities/
+- Three migration scenarios:
+  1. Personal domain change (both domains countersign — highest assurance)
+  2. Institutional migration (new parent manages the chain, additive)
+  3. Emergency migration (root gone, hash_publico proof, v9 assurance)
+- Rules: receiving node maintains chain, full history published, permanent entries
+- Verification sequence for credentials issued under old identities
+- [migration-type emergency] declaration for absent countersignatures
 
-### New section: §16 Ecosystem Directions
-- §16.1 — P2P publishing layer
-- §16.2 — On-chain roots
-- §16.3 — NFC / Bluetooth offline proof exchange
-- §16.4 — AI training data provenance + explicit Trusteando/Trusteando-Inference
-  distinction: "Trusteando is the data; Trusteando-Inference is the algorithm"
-- §16.5 — Trust Badges: human-readable authority display standard (display format,
-  query interface, visual vocabulary t9/v9/b9/absent, degradation policy)
+### §32 — HTTP Integration Pattern: /.well-known/trusteando-proof
+- Optional discovery endpoint (not a core protocol requirement)
+- JSON response schema: trusteando_root, entity_id, hash_publico, trust_level,
+  signed_by, proof_format, since, cache_ttl
+- Client usage sequence: discovery → verification (separate steps)
+- Trust Badge integration: entry point for browser extensions (§16.5)
+- Visual vocabulary: t9/v9/b9/absent — absence of signal is not negative signal
+- Server SHOULD and MUST NOT rules
+- Relationship to protocol: well-known is discovery, graph is authority
 
-## Cookbook changes (recipes 10–13)
-- Recipe 10 — Journalism and photographic provenance
-- Recipe 11 — IoT supply chain with cold chain monitoring
-- Recipe 12 — AI model training provenance (EU AI Act alignment)
-- Recipe 13 — Verifiable sale receipt (QR → URL → signed graph node,
-  Trust Badge connection, tax authority audit trail)
+## Other files updated
+- whitepaper/pendientes.txt (§30–32 marked [x])
+- Style Guide version bumped to v0.4 in footer
 
-## Files updated
-- whitepaper/trusteando_whitepaper_v021_en.md (+546 lines, 5331 → 5877)
-- whitepaper/trusteando_cookbook.md (+230 lines, recipes 10–13)
-- whitepaper/pendientes.txt (all whitepaper v0.3 items [x], style guide §32 added)
-- README.md (status section updated)
-
-## Pending (v0.3 ecosystem)
-- Style guide §30 — path-pattern vs select-subset-from
-- Style guide §31 — domain migration patterns
-- Style guide §32 — HTTP integration pattern / /.well-known/trusteando-proof
+## Pending
 - Trusteando-Inference v0.1 spec
-- Conformance test suite, reference implementations (2 languages)
+- Conformance test suite (§1.5, §1.6)
+- Reference implementations (2 languages)
 - Reference wallet spec
+- ctx README (vault as layer 3)
