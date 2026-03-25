@@ -3797,7 +3797,64 @@ This section compares Trusteando with the systems it is most often compared to. 
 Trusteando occupies a different layer: persistent, hierarchical, multi-authority identity and authority relationships expressed as a verifiable knowledge graph.
 
 
-# 16. Roadmap
+# 16. Ecosystem Directions
+
+The following directions are not protocol commitments — they are areas where the combination of Trusteando's properties and external developments creates natural extension points. Each describes a problem the protocol is structurally positioned to address, and the technical direction most compatible with its design principles.
+
+## 16.1 P2P Publishing Layer
+
+The protocol currently runs over HTTP — any web server can host a Trusteando node. This creates a dependency on DNS and server availability: if a domain is seized or a server goes offline, the node's published facts become unreachable.
+
+A P2P publishing layer (IPFS, libp2p, or a content-addressed overlay) would allow node content to be replicated across peers without a central server. The node's identity remains anchored to its URL; the content is additionally available via its content hash on the P2P network. The two are complementary: HTTP provides the human-readable anchor; P2P provides censorship resistance and availability guarantees.
+
+This is an ecosystem extension, not a protocol change. The core cryptographic model is unchanged — the folder structure, key hierarchy, and HMAC derivation operate identically regardless of the transport layer. What changes is the replication and availability layer above the protocol.
+
+## 16.2 On-Chain Roots
+
+A root node whose key is controlled by a smart contract on a public blockchain would replace a single administrator's custody with programmable, transparent governance. Key rotation, quorum requirements for root-level decisions, and succession rules would be encoded in the contract — auditable by anyone, executable by no single party.
+
+This is the polycephalic model (§4.10) taken to its logical extreme: instead of trusting a named institution's key custody, you trust a set of on-chain rules. The trade-off is the same one blockchains always impose — the rules are transparent and tamper-resistant, but they are also rigid. A contract cannot exercise judgment.
+
+The integration point with the protocol is clean: the root node's `hash_publico` is the contract's public output. Verification of the root's authority traces to the contract address on a public chain. Everything below the root in the hierarchy operates identically to today. This is an architectural option for roots that require maximum governance transparency — not a replacement for the default model.
+
+## 16.3 NFC / Bluetooth Offline Proof Exchange
+
+The portable proof format (§4.13) defines a compact JSON + QR binary representation of a credential proof. The natural extension is a short-range wireless exchange specification: two devices in proximity exchange proofs over NFC or Bluetooth without requiring internet connectivity.
+
+Use cases: a police officer verifying a driver's licence in a tunnel with no signal; an access control system at a venue during a network outage; a doctor verifying a patient's consent in a hospital wing with restricted connectivity.
+
+The protocol's offline verifiability property (§4.11.6) already guarantees that a proof can be verified against a locally cached parent key without a live server query. The missing piece is the device-to-device transport specification — how the proof is packaged, transmitted, and presented in a constrained environment. This is an application-layer specification, not a cryptographic one.
+
+## 16.4 AI Training Data Provenance
+
+The EU AI Act and equivalent frameworks require high-risk AI systems to document training data provenance — what data was used, under what license, with what characteristics. The protocol's properties map directly onto this requirement: append-only history, signed by the developer, externally verifiable, with `extern/` references to original dataset nodes for live license checking.
+
+The structural pattern is illustrated in the Cookbook (Recipe 12). What remains is a sector vocabulary standard — canonical field names for model metadata (`parameter-count`, `architecture`, `training-cutoff`), dataset metadata (`license`, `hash`, `source`), and evaluation results (`method`, `result`, `auditor`) — so that regulators, auditors, and downstream users can query any compliant node with the same vocabulary. This is a style guide extension (sector schema for AI governance), not a protocol change.
+
+The broader application is any domain requiring chain-of-custody documentation for digital artefacts: journalism (Recipe 10), pharmaceutical batch tracking, legal evidence management, financial audit trails. The protocol's cryptographic properties are the foundation; the sector vocabulary is what makes them interoperable across organisations.
+
+The graph structure that provenance produces is also the input to trust scoring algorithms. The relationship between graph structure and computed trust scores is the same as the relationship between the web's link graph and PageRank: the protocol provides the graph; inference engines compute the scores. Put directly: **Trusteando is the data; Trusteando-Inference is the algorithm.** This separation is intentional — it allows competing inference implementations to run over the same graph, each calibrated for different domains and risk tolerances, without any single algorithm controlling what is considered trustworthy. The first specification for trust scoring over the Trusteando graph — **Trusteando-Inference v0.1** — is the natural next document in this ecosystem (§13.10).
+
+## 16.5 Trust Badges — Human-Readable Authority Display
+
+HTTPS gave browsers a visual signal — the padlock — that the connection is encrypted. Trusteando creates the conditions for an equivalent signal at the content layer: not "this connection is secure" but "this content was issued by an entity with the following authority chain."
+
+A Trust Badge is a browser or application component that reads a node's Trusteando structure and displays it in human terms. When a user visits a medical information page, the badge shows: *"This content is published by Clínica San Carlos, recognised by the Comunidad de Madrid, accredited by the Consejo General de Colegios Médicos."* Each link in that chain is a verifiable graph path, not a self-declaration.
+
+The technical foundation already exists: the graph is public, the verification is offline-capable (§4.11.6), and the authority chain is machine-readable by construction. What a Trust Badge specification would add is:
+
+- A canonical display format: how to render a chain of `[is-accredited-by]`, `[trusteado by]`, and `[firmante @]` relationships in human language across locales.
+- A query interface: a standard way for a browser extension or native browser feature to fetch and verify the Trusteando structure for the current domain.
+- A visual vocabulary: what visual states correspond to `t9` (full chain verified), `v9` (node exists, chain not fully verified), `b9` (node exists but flagged), and no node (not participating).
+- A degradation policy: what the badge shows when the Trusteando server is unreachable — cached state with timestamp, or absent signal, never a false positive.
+
+The relationship to `/.well-known/trusteando-proof` (style guide §32) is direct: a Trust Badge implementation would fetch the proof from the well-known path as its first step, then walk the authority chain upward. The badge is the UI layer; the well-known path is the discovery mechanism; the graph is the data.
+
+This is not a core protocol change. It is an application-layer specification — the equivalent of how browser vendors implemented the HTTPS padlock over an existing protocol. The protocol provides everything needed; the badge specification defines how to present it.
+
+---
+
+# 17. Roadmap
 
 Future versions of the protocol are guided by the problems that implementation practice reveals as most urgent. The following roadmap reflects the current state of known priorities—it is not a commitment of dates but a declaration of intent.
 
