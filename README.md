@@ -57,10 +57,21 @@ This document explains:
 
 ---
 
+## Integration
+
+- **[AWARE + Trusteando](docs/integration/aware_trusteando.md)** — How canonical structure (AWARE) meets certifiable audit (Trusteando).
+
+---
+
 ## Repository structure
 
 ```
 Trusteando_Protocol/
+├── docs/
+│   ├── architecture/
+│   │   └── layers.md
+│   └── integration/
+│       └── aware_trusteando.md
 ├── whitepaper/
 │   ├── trusteando_whitepaper_v021_en.md   ← full specification (v0.2.1 + v0.3 additions)
 │   ├── trusteando_style_guide.md           ← naming conventions and best practices
