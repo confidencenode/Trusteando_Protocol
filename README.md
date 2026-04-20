@@ -42,6 +42,21 @@ class TrusteandoNode:
 
 ---
 
+## Architecture
+
+For a conceptual overview of how Trusteando layers work together — from human intent to auditable execution — see:
+
+**[Trusteando: A Layered Architecture for Verifiable Systems](docs/architecture/layers.md)**
+
+This document explains:
+- The 6-layer stack (Human Bridge → Publication Layer → AWARE → Trusteando Core → Notified Body Kit → Dossier)
+- Input/output/guarantee for each layer
+- Why layers are independent (like TCP/IP)
+- How the local-global tension (BOE vs interoperability) is resolved
+- End-to-end example (housing benefit AI)
+
+---
+
 ## Repository structure
 
 ```
